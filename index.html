@@ -1292,37 +1292,45 @@ async function driveToggle() {
   const btn = document.getElementById('driveBtn');
   btn.textContent = '⏳ Conectando...';
   btn.disabled = true;
-  _setStatus('Aguardando login...', '#d29922');
+  _setStatus('Carregando libs...', '#d29922');
 
   try {
-    // Carregar as duas libs em paralelo
-    await Promise.all([_loadGIS(), _loadGapiClient()]);
+    // 1. Carregar GIS e gapi sequencialmente (mais confiável que paralelo)
+    await _loadGIS();
+    await _loadGapiClient();
 
-    // Inicializar gapi client com Drive API
+    // 2. Inicializar gapi client SEM discovery (evita timeout)
     await gapi.client.init({});
-    await gapi.client.load('https://www.googleapis.com/discovery/v1/apis/drive/v3/rest');
 
-    // Criar token client GIS (popup OAuth)
-    _tokenClient = google.accounts.oauth2.initTokenClient({
-      client_id: DRIVE_CLIENT_ID,
-      scope:     DRIVE_SCOPE,
-      callback:  _onTokenReceived,
-      error_callback: (err) => {
-        console.error('GIS error:', err);
-        _setStatus('Erro no login', '#f85149');
-        btn.textContent = '☁ Conectar Drive';
-        btn.disabled = false;
+    // 3. Criar tokenClient DEPOIS que GIS estiver 100% carregado
+    //    Usar Promise para garantir que o callback seja chamado
+    await new Promise((resolve, reject) => {
+      try {
+        _tokenClient = google.accounts.oauth2.initTokenClient({
+          client_id:      DRIVE_CLIENT_ID,
+          scope:          DRIVE_SCOPE,
+          callback:       (tokenResp) => {
+            resolve(tokenResp);
+          },
+          error_callback: (err) => {
+            reject(new Error(err.type || JSON.stringify(err)));
+          }
+        });
+        // 4. Abrir popup de login Google
+        _setStatus('Aguardando login...', '#d29922');
+        _tokenClient.requestToken();
+      } catch(e) {
+        reject(e);
       }
-    });
-
-    // Solicitar token (abre popup Google)
-    _tokenClient.requestToken();
+    }).then(tokenResp => _onTokenReceived(tokenResp))
+      .catch(err => { throw err; });
 
   } catch (err) {
     console.error('Drive init error:', err);
     _setStatus('Erro!', '#f85149');
     btn.textContent = '☁ Conectar Drive';
     btn.disabled = false;
+    Object.assign(btn.style, { background:'#1c2330', color:'#8b949e', borderColor:'#30363d' });
     alert('Erro ao conectar com Google Drive.\n\nVerifique:\n• CLIENT_ID configurado corretamente\n• Domínio autorizado no Google Cloud Console\n\nDetalhe: ' + err.message);
   }
 }
@@ -1331,10 +1339,11 @@ async function _onTokenReceived(tokenResponse) {
   const btn = document.getElementById('driveBtn');
   btn.disabled = false;
 
-  if (tokenResponse.error) {
+  if (!tokenResponse || tokenResponse.error) {
     console.error('Token error:', tokenResponse);
     _setStatus('Acesso negado', '#f85149');
     btn.textContent = '☁ Conectar Drive';
+    Object.assign(btn.style, { background:'#1c2330', color:'#8b949e', borderColor:'#30363d' });
     return;
   }
 
@@ -1345,6 +1354,8 @@ async function _onTokenReceived(tokenResponse) {
   _setStatus('Localizando...', '#d29922');
 
   try {
+    // Carregar Drive API agora que temos o token (mais confiável)
+    await gapi.client.load('drive', 'v3');
     _driveFileId = await _findOrCreateFile();
     _driveReady  = true;
     _setStatus('Sincronizado ✓', '#3fb950');
