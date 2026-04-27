@@ -1198,7 +1198,7 @@ async function _doExport() {
 //  Cole seu CLIENT_ID abaixo (linha DRIVE_CLIENT_ID).
 // ══════════════════════════════════════════════════════════════════════════════
 
-const DRIVE_CLIENT_ID = '188106832369-vhde8aeukj7ifcl8c7fdigmtkdgvrn2m.apps.googleusercontent.com';
+const DRIVE_CLIENT_ID = 'SEU_CLIENT_ID_AQUI.apps.googleusercontent.com';
 const DRIVE_FILENAME  = 'kpi_state.json';
 const DRIVE_SCOPE     = 'https://www.googleapis.com/auth/drive.file';
 
@@ -1328,13 +1328,31 @@ function _driveDisconnect() {
 function _auth() { return { Authorization: 'Bearer ' + _driveToken }; }
 
 async function _findOrCreateFile() {
+  // Busca ampla — qualquer arquivo json com kpi_state no nome, não na lixeira
+  const q = encodeURIComponent("name contains 'kpi_state' and trashed=false and mimeType='application/json'");
   const res = await fetch(
-    `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent("name='" + DRIVE_FILENAME + "' and trashed=false")}&fields=files(id,name)&spaces=drive`,
+    `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,modifiedTime,size)&orderBy=modifiedTime+desc&spaces=drive`,
     { headers: _auth() }
   );
   if (!res.ok) throw new Error('Erro ao buscar arquivo: HTTP ' + res.status);
   const data = await res.json();
-  if (data.files && data.files.length > 0) return data.files[0].id;
+
+  // Log para diagnóstico — aparece no console do browser
+  console.log('[KPI Drive] Arquivos encontrados:', JSON.stringify(data.files));
+
+  if (data.files && data.files.length > 0) {
+    // Pegar o de maior tamanho (mais provável de ter dados)
+    const sorted = data.files.sort((a, b) => (parseInt(b.size)||0) - (parseInt(a.size)||0));
+    console.log('[KPI Drive] Usando arquivo:', sorted[0].name, sorted[0].id, 'size:', sorted[0].size);
+    // Apagar os demais silenciosamente
+    sorted.slice(1).forEach(f => {
+      console.log('[KPI Drive] Apagando duplicata:', f.name, f.id);
+      fetch(`https://www.googleapis.com/drive/v3/files/${f.id}`, { method: 'DELETE', headers: _auth() });
+    });
+    return sorted[0].id;
+  }
+
+  console.log('[KPI Drive] Nenhum arquivo encontrado — criando novo');
   return _createFile();
 }
 
