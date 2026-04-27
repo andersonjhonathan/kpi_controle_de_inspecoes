@@ -1193,274 +1193,198 @@ async function _doExport() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-//  GOOGLE DRIVE SYNC v2 — Google Identity Services (GIS)
-//  Compatível com GitHub Pages (HTTPS). Funciona com file:// via token manual.
-//
-//  ┌─ CONFIGURAÇÃO (1x) ──────────────────────────────────────────────────────┐
-//  │ 1. Acesse https://console.cloud.google.com e crie um projeto             │
-//  │ 2. APIs e serviços → Biblioteca → ative "Google Drive API"               │
-//  │ 3. APIs e serviços → Credenciais → Criar → ID do cliente OAuth 2.0       │
-//  │    Tipo: Aplicativo da Web                                                │
-//  │    Origens JS autorizadas: https://SEU_USUARIO.github.io                 │
-//  │    URIs de redirecionamento: https://SEU_USUARIO.github.io/SEU_REPO      │
-//  │ 4. Tela de consentimento OAuth → adicione seu e-mail como Usuário teste  │
-//  │ 5. Copie o Client ID e cole abaixo em DRIVE_CLIENT_ID                    │
-//  └──────────────────────────────────────────────────────────────────────────┘
+//  GOOGLE DRIVE SYNC v3 — OAuth2 Implicit Flow via fetch puro
+//  Sem gapi, sem initTokenClient. Funciona 100% no GitHub Pages.
+//  Cole seu CLIENT_ID abaixo (linha DRIVE_CLIENT_ID).
 // ══════════════════════════════════════════════════════════════════════════════
 
 const DRIVE_CLIENT_ID = '188106832369-vhde8aeukj7ifcl8c7fdigmtkdgvrn2m.apps.googleusercontent.com';
-const DRIVE_SCOPE     = 'https://www.googleapis.com/auth/drive.file';
 const DRIVE_FILENAME  = 'kpi_state.json';
+const DRIVE_SCOPE     = 'https://www.googleapis.com/auth/drive.file';
 
-let _driveToken     = null;   // access token atual
-let _driveFileId    = null;   // ID do kpi_state.json no Drive
+let _driveToken     = null;
+let _driveFileId    = null;
 let _driveReady     = false;
 let _driveSaveTimer = null;
-let _tokenClient    = null;
 
-// ── Injetar UI na barra de controles ─────────────────────────────────────────
+// ── UI ────────────────────────────────────────────────────────────────────────
 (function injectDriveUI() {
   const controls = document.querySelector('.controls');
   if (!controls) return;
-
   const sep = document.createElement('div');
   sep.style.cssText = 'width:1px;height:20px;background:#30363d;margin:0 2px;flex-shrink:0';
   controls.appendChild(sep);
-
   const btn = document.createElement('button');
   btn.id = 'driveBtn';
   btn.textContent = '☁ Conectar Drive';
-  btn.style.cssText = [
-    'background:#1c2330','color:#8b949e','border:1px solid #30363d',
-    'border-radius:6px','padding:6px 14px','font-size:12px',
-    'font-weight:600','cursor:pointer','transition:all .2s','flex-shrink:0'
-  ].join(';');
+  btn.style.cssText = 'background:#1c2330;color:#8b949e;border:1px solid #30363d;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;flex-shrink:0';
   btn.onclick = driveToggle;
   controls.appendChild(btn);
-
-  const status = document.createElement('div');
-  status.id = 'driveStatus';
-  status.style.cssText = 'font-size:11px;color:#8b949e;min-width:90px;text-align:center;flex-shrink:0';
-  status.textContent = 'Desconectado';
-  controls.appendChild(status);
+  const st = document.createElement('div');
+  st.id = 'driveStatus';
+  st.style.cssText = 'font-size:11px;color:#8b949e;min-width:90px;text-align:center;flex-shrink:0';
+  st.textContent = 'Desconectado';
+  controls.appendChild(st);
 })();
 
 function _setStatus(msg, color) {
   const el  = document.getElementById('driveStatus');
   const btn = document.getElementById('driveBtn');
-  if (el)  { el.textContent = msg; el.style.color = color || '#8b949e'; }
+  if (el) { el.textContent = msg; el.style.color = color || '#8b949e'; }
   if (btn) {
     if (color === '#3fb950') {
       btn.textContent = '☁ Drive ✓';
-      Object.assign(btn.style, { background:'#1a3c26', color:'#3fb950', borderColor:'#1a3c26' });
+      Object.assign(btn.style, {background:'#1a3c26',color:'#3fb950',borderColor:'#1a3c26'});
       btn.title = 'Clique para desconectar';
     } else if (color === '#f85149') {
-      Object.assign(btn.style, { background:'#3d1313', color:'#f85149', borderColor:'#3d1313' });
+      Object.assign(btn.style, {background:'#3d1313',color:'#f85149',borderColor:'#3d1313'});
     }
   }
 }
 
-// ── Carregar Google Identity Services ────────────────────────────────────────
-function _loadGIS() {
+// ── OAuth2 Implicit Flow — abre popup e captura o token ──────────────────────
+function _getToken() {
   return new Promise((resolve, reject) => {
-    if (window.google?.accounts) return resolve();
-    const s = document.createElement('script');
-    s.src = 'https://accounts.google.com/gsi/client';
-    s.onload  = resolve;
-    s.onerror = () => reject(new Error('Falha ao carregar Google Identity Services'));
-    document.head.appendChild(s);
+    const redirectUri = location.origin + location.pathname;
+    const url = 'https://accounts.google.com/o/oauth2/v2/auth?' + new URLSearchParams({
+      client_id:     DRIVE_CLIENT_ID,
+      redirect_uri:  redirectUri,
+      response_type: 'token',
+      scope:         DRIVE_SCOPE,
+      prompt:        'select_account',
+    });
+
+    const popup = window.open(url, 'google_oauth', 'width=500,height=620,left=200,top=100');
+    if (!popup) { reject(new Error('Popup bloqueado! Permita popups para este site.')); return; }
+
+    // Verificar a cada 300ms se o popup redirecionou de volta com o token
+    const interval = setInterval(() => {
+      try {
+        const href = popup.location.href;
+        if (href.includes('access_token')) {
+          clearInterval(interval);
+          popup.close();
+          const params = new URLSearchParams(href.split('#')[1] || href.split('?')[1]);
+          const token  = params.get('access_token');
+          token ? resolve(token) : reject(new Error('Token não recebido'));
+        }
+        // Popup fechado pelo usuário sem autorizar
+        if (popup.closed) {
+          clearInterval(interval);
+          reject(new Error('Login cancelado pelo usuário'));
+        }
+      } catch(e) {
+        // Cross-origin enquanto no Google — aguardar redirecionamento de volta
+      }
+    }, 300);
+
+    // Timeout de 3 minutos
+    setTimeout(() => {
+      clearInterval(interval);
+      if (!popup.closed) popup.close();
+      reject(new Error('Tempo de login expirado'));
+    }, 180000);
   });
 }
 
-function _loadGapiClient() {
-  return new Promise((resolve, reject) => {
-    if (window.gapi?.client) return resolve();
-    const s = document.createElement('script');
-    s.src = 'https://apis.google.com/js/api.js';
-    s.onload = () => {
-      gapi.load('client', { callback: resolve, onerror: reject });
-    };
-    s.onerror = () => reject(new Error('Falha ao carregar gapi'));
-    document.head.appendChild(s);
-  });
-}
-
-// ── Toggle conectar/desconectar ───────────────────────────────────────────────
+// ── Toggle ────────────────────────────────────────────────────────────────────
 async function driveToggle() {
   if (_driveReady) { _driveDisconnect(); return; }
 
   const btn = document.getElementById('driveBtn');
-  btn.textContent = '⏳ Conectando...';
   btn.disabled = true;
-  _setStatus('Carregando libs...', '#d29922');
+  btn.textContent = '⏳ Aguardando...';
+  _setStatus('Abrindo login...', '#d29922');
 
   try {
-    // 1. Carregar GIS e gapi sequencialmente (mais confiável que paralelo)
-    await _loadGIS();
-    await _loadGapiClient();
-
-    // 2. Inicializar gapi client SEM discovery (evita timeout)
-    await gapi.client.init({});
-
-    // 3. Criar tokenClient DEPOIS que GIS estiver 100% carregado
-    //    Usar Promise para garantir que o callback seja chamado
-    await new Promise((resolve, reject) => {
-      try {
-        _tokenClient = google.accounts.oauth2.initTokenClient({
-          client_id:      DRIVE_CLIENT_ID,
-          scope:          DRIVE_SCOPE,
-          callback:       (tokenResp) => {
-            resolve(tokenResp);
-          },
-          error_callback: (err) => {
-            reject(new Error(err.type || JSON.stringify(err)));
-          }
-        });
-        // 4. Abrir popup de login Google
-        _setStatus('Aguardando login...', '#d29922');
-        _tokenClient.requestAccessToken();
-      } catch(e) {
-        reject(e);
-      }
-    }).then(tokenResp => _onTokenReceived(tokenResp))
-      .catch(err => { throw err; });
-
-  } catch (err) {
-    console.error('Drive init error:', err);
-    _setStatus('Erro!', '#f85149');
-    btn.textContent = '☁ Conectar Drive';
-    btn.disabled = false;
-    Object.assign(btn.style, { background:'#1c2330', color:'#8b949e', borderColor:'#30363d' });
-    alert('Erro ao conectar com Google Drive.\n\nVerifique:\n• CLIENT_ID configurado corretamente\n• Domínio autorizado no Google Cloud Console\n\nDetalhe: ' + err.message);
-  }
-}
-
-async function _onTokenReceived(tokenResponse) {
-  const btn = document.getElementById('driveBtn');
-  btn.disabled = false;
-
-  if (!tokenResponse || tokenResponse.error) {
-    console.error('Token error:', tokenResponse);
-    _setStatus('Acesso negado', '#f85149');
-    btn.textContent = '☁ Conectar Drive';
-    Object.assign(btn.style, { background:'#1c2330', color:'#8b949e', borderColor:'#30363d' });
-    return;
-  }
-
-  _driveToken = tokenResponse.access_token;
-  // Injetar token no gapi client
-  gapi.client.setToken({ access_token: _driveToken });
-
-  _setStatus('Localizando...', '#d29922');
-
-  try {
-    // Carregar Drive API agora que temos o token (mais confiável)
-    await gapi.client.load('drive', 'v3');
+    _driveToken = await _getToken();
+    _setStatus('Localizando arquivo...', '#d29922');
     _driveFileId = await _findOrCreateFile();
     _driveReady  = true;
     _setStatus('Sincronizado ✓', '#3fb950');
     await _driveLoad();
   } catch(err) {
-    console.error('Drive setup error:', err);
-    _setStatus('Erro ao acessar Drive', '#f85149');
+    console.error('Drive error:', err);
+    _setStatus('Erro!', '#f85149');
     btn.textContent = '☁ Conectar Drive';
-    Object.assign(btn.style, { background:'#1c2330', color:'#8b949e', borderColor:'#30363d' });
-    btn.title = '';
+    Object.assign(btn.style, {background:'#1c2330',color:'#8b949e',borderColor:'#30363d'});
+    alert('Erro ao conectar com Google Drive.\n\n' + err.message +
+          '\n\nVerifique:\n• CLIENT_ID correto\n• Domínio autorizado no Google Cloud Console');
+  } finally {
+    btn.disabled = false;
   }
 }
 
 function _driveDisconnect() {
-  _driveReady  = false;
-  _driveToken  = null;
-  _driveFileId = null;
-  if (_tokenClient) google.accounts.oauth2.revoke(_driveToken, ()=>{});
-  gapi.client.setToken(null);
+  _driveReady = false; _driveToken = null; _driveFileId = null;
   const btn = document.getElementById('driveBtn');
   btn.textContent = '☁ Conectar Drive';
-  Object.assign(btn.style, { background:'#1c2330', color:'#8b949e', borderColor:'#30363d' });
+  Object.assign(btn.style, {background:'#1c2330',color:'#8b949e',borderColor:'#30363d'});
   btn.title = '';
   _setStatus('Desconectado', '#8b949e');
 }
 
-// ── Localizar ou criar kpi_state.json no Drive ────────────────────────────────
+// ── Drive API via fetch puro ──────────────────────────────────────────────────
+function _auth() { return { Authorization: 'Bearer ' + _driveToken }; }
+
 async function _findOrCreateFile() {
-  const res = await gapi.client.drive.files.list({
-    q: `name='${DRIVE_FILENAME}' and trashed=false`,
-    fields: 'files(id,name)',
-    spaces: 'drive',
-  });
-  const files = res.result.files;
-  if (files && files.length > 0) return files[0].id;
-  return await _createFile();
+  const res = await fetch(
+    `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent("name='" + DRIVE_FILENAME + "' and trashed=false")}&fields=files(id,name)&spaces=drive`,
+    { headers: _auth() }
+  );
+  if (!res.ok) throw new Error('Erro ao buscar arquivo: HTTP ' + res.status);
+  const data = await res.json();
+  if (data.files && data.files.length > 0) return data.files[0].id;
+  return _createFile();
 }
 
 async function _createFile() {
-  const boundary = 'KPI_BOUNDARY_' + Date.now();
-  const content  = JSON.stringify(state);
-  const body =
-    `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n` +
-    `{"name":"${DRIVE_FILENAME}","mimeType":"application/json"}\r\n` +
-    `--${boundary}\r\nContent-Type: application/json\r\n\r\n` +
-    `${content}\r\n--${boundary}--`;
-
-  const resp = await gapi.client.request({
-    path:   'https://www.googleapis.com/upload/drive/v3/files',
-    method: 'POST',
-    params: { uploadType: 'multipart', fields: 'id' },
-    headers: { 'Content-Type': `multipart/related; boundary="${boundary}"` },
-    body,
-  });
-  return resp.result.id;
+  const boundary = 'KPI_BOUND_' + Date.now();
+  const meta     = JSON.stringify({ name: DRIVE_FILENAME, mimeType: 'application/json' });
+  const body     = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${meta}\r\n--${boundary}\r\nContent-Type: application/json\r\n\r\n${JSON.stringify(state)}\r\n--${boundary}--`;
+  const res = await fetch(
+    'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id',
+    { method:'POST', headers:{..._auth(),'Content-Type':`multipart/related; boundary="${boundary}"`}, body }
+  );
+  if (!res.ok) throw new Error('Erro ao criar arquivo: HTTP ' + res.status);
+  const data = await res.json();
+  return data.id;
 }
 
-// ── Carregar state do Drive ───────────────────────────────────────────────────
 async function _driveLoad() {
-  _setStatus('Carregando...', '#d29922');
+  _setStatus('Carregando dados...', '#d29922');
   try {
-    const resp = await fetch(
+    const res = await fetch(
       `https://www.googleapis.com/drive/v3/files/${_driveFileId}?alt=media`,
-      { headers: { Authorization: `Bearer ${_driveToken}` } }
+      { headers: _auth() }
     );
-
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    const loaded = await resp.json();
-
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const loaded = await res.json();
     if (loaded && loaded.weeks) {
       state = loaded;
-
-      // Garantir semanas/disciplinas novas que não estavam no backup
       WEEKS.forEach(w => {
-        if (!state.weeks[w.num]) {
-          state.weeks[w.num] = { disc: {} };
-        }
+        if (!state.weeks[w.num]) state.weeks[w.num] = { disc: {} };
         DISCS.forEach(d => {
-          if (!state.weeks[w.num].disc[d.name]) {
+          if (!state.weeks[w.num].disc[d.name])
             state.weeks[w.num].disc[d.name] = {
-              prog_qt: Array(7).fill(0), real_qt: Array(7).fill(0),
-              prog_ql: Array(7).fill(0), real_ql: Array(7).fill(0),
+              prog_qt:Array(7).fill(0), real_qt:Array(7).fill(0),
+              prog_ql:Array(7).fill(0), real_ql:Array(7).fill(0)
             };
-          }
         });
       });
       if (!state.pends) state.pends = [];
-
-      // Espelhar no localStorage como fallback offline
       try { localStorage.setItem('kpi_v4', JSON.stringify(state)); } catch(e) {}
-
       renderAll();
-      _setStatus('Sincronizado ✓', '#3fb950');
     } else {
-      // Arquivo vazio — subir state atual
       await _driveSaveNow();
-      _setStatus('Sincronizado ✓', '#3fb950');
     }
+    _setStatus('Sincronizado ✓', '#3fb950');
   } catch(err) {
-    console.error('Erro ao carregar Drive:', err);
+    console.error('Erro ao carregar:', err);
     _setStatus('Erro ao carregar', '#f85149');
   }
 }
 
-// ── Salvar state no Drive (debounce 2s) ──────────────────────────────────────
 function driveSave() {
   if (!_driveReady) return;
   clearTimeout(_driveSaveTimer);
@@ -1471,22 +1395,15 @@ function driveSave() {
 async function _driveSaveNow() {
   if (!_driveReady || !_driveFileId || !_driveToken) return;
   try {
-    const resp = await fetch(
+    const res = await fetch(
       `https://www.googleapis.com/upload/drive/v3/files/${_driveFileId}?uploadType=media`,
-      {
-        method:  'PATCH',
-        headers: {
-          Authorization:  `Bearer ${_driveToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(state),
-      }
+      { method:'PATCH', headers:{..._auth(),'Content-Type':'application/json'}, body:JSON.stringify(state) }
     );
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    const t = new Date().toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const t = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
     _setStatus(`Salvo ✓ ${t}`, '#3fb950');
   } catch(err) {
-    console.error('Erro ao salvar Drive:', err);
+    console.error('Erro ao salvar:', err);
     _setStatus('Erro ao salvar!', '#f85149');
   }
 }
