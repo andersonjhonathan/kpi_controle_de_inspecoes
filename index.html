@@ -1318,7 +1318,7 @@ async function driveToggle() {
         });
         // 4. Abrir popup de login Google
         _setStatus('Aguardando login...', '#d29922');
-        _tokenClient.requestToken();
+        _tokenClient.requestAccessToken();
       } catch(e) {
         reject(e);
       }
