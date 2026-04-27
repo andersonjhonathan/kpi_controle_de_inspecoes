@@ -115,6 +115,16 @@ body{background:var(--el-bg);color:var(--el-text);font-family:'Segoe UI',system-
 .pend-textarea:focus{outline:none;border-color:var(--el-blue)}
 .pend-textarea::placeholder{color:var(--el-text3)}
 .pend-date{font-size:10px;color:var(--el-text3);margin-top:5px}
+.pend-meta{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+.pend-meta-field{flex:1;min-width:120px}
+.pend-meta-label{font-size:10px;color:var(--el-text3);margin-bottom:3px;text-transform:uppercase;letter-spacing:.4px}
+.pend-meta-input{width:100%;background:var(--el-surface3);border:1px solid var(--el-border);color:var(--el-text);border-radius:var(--r);padding:5px 8px;font-size:12px;font-family:inherit;cursor:pointer}
+.pend-meta-input:focus{outline:none;border-color:var(--el-blue)}
+.pend-meta-input[type=date]::-webkit-calendar-picker-indicator{filter:invert(0.6);cursor:pointer}
+.pend-prazo-vencido .pend-meta-input[type=date]{border-color:#f85149;color:#f85149}
+.pend-prazo-hoje .pend-meta-input[type=date]{border-color:#d29922;color:#d29922}
+body.light .pend-meta-input{background:#ffffff;border-color:#cdd2da;color:#111827}
+body.light .pend-meta-input[type=date]::-webkit-calendar-picker-indicator{filter:none}
 .pend-add-btn{display:flex;align-items:center;gap:6px;background:var(--el-surface2);border:1px dashed var(--el-border2);border-radius:var(--r2);padding:10px 14px;cursor:pointer;color:var(--el-text2);font-size:12px;font-family:inherit;width:100%;justify-content:center;transition:all .15s}
 .pend-add-btn:hover{border-color:var(--el-blue);color:var(--el-blue)}
 .pend-del{position:absolute;top:8px;right:8px;background:transparent;border:none;color:var(--el-text3);cursor:pointer;font-size:14px;padding:2px 5px;border-radius:4px}
@@ -299,6 +309,7 @@ body.light .sub-label{color:#6b7280}
   .pend-card{background:#f7f8fa !important;border:1px solid #cdd2da !important}
   .pend-textarea{background:#ffffff !important;border-color:#cdd2da !important;color:#111827 !important;font-size:11px}
   .pend-date{color:#6b7280 !important;font-size:9px}
+  .pend-meta-input{background:#ffffff !important;border-color:#cdd2da !important;color:#111827 !important;font-size:10px}
   .footer-bar{padding:7px 14px;gap:6px;margin-bottom:6px;background:#ffffff !important;border:1px solid #cdd2da !important;border-radius:8px}
   .fs-val{font-size:16px;color:#134e4a !important}
   .fs-label{font-size:9px;color:#6b7280 !important}
@@ -451,7 +462,7 @@ body.light .sub-label{color:#6b7280}
     <div class="sig-div"></div>
     <span class="sig-tag">GASLUB EPC05</span>
     <div class="sig-div"></div>
-    <span class="sig-tag teal">Rev. 1.6</span>
+    <span class="sig-tag teal">Rev. 1.7</span>
     <div class="sig-div"></div>
     <span class="sig-tag">abr/2026</span>
   </div>
@@ -845,14 +856,40 @@ function renderPends(){
     const i = state.pends.indexOf(p);
     const st = STATUS_STYLES[p.status] || STATUS_STYLES.aberta;
     const col = DISC_COLORS[p.disc] || '#8b949e';
-    const card = document.createElement('div'); card.className = 'pend-card';
+
+    // Verificar vencimento do prazo
+    let prazoClass = '';
+    if (p.prazo) {
+      const hoje = new Date(); hoje.setHours(0,0,0,0);
+      const prazoDate = new Date(p.prazo + 'T00:00:00');
+      const diff = Math.ceil((prazoDate - hoje) / 86400000);
+      if (diff < 0) prazoClass = 'pend-prazo-vencido';
+      else if (diff === 0) prazoClass = 'pend-prazo-hoje';
+    }
+
+    const card = document.createElement('div');
+    card.className = 'pend-card ' + prazoClass;
     card.innerHTML = `
       <button class="pend-del" onclick="delPend(${i})" title="Remover">✕</button>
       <div class="pend-card-header">
         <span class="pend-disc-tag" style="background:${col}22;color:${col};border:1px solid ${col}44">${p.disc}</span>
         <button class="pend-status-tag" style="background:${st.bg};color:${st.color};border:1px solid ${st.color}44" onclick="cycleStatus(${i})">${st.label}</button>
       </div>
-      <textarea class="pend-textarea" placeholder="Descreva a pendência ou observação..." data-idx="${i}" onchange="updPend(this)">${p.text || ''}</textarea>
+      <textarea class="pend-textarea" placeholder="Descreva a restrição..." data-idx="${i}" onchange="updPend(this)">${p.text || ''}</textarea>
+      <div class="pend-meta">
+        <div class="pend-meta-field">
+          <div class="pend-meta-label">Responsável</div>
+          <input class="pend-meta-input" type="text" placeholder="Nome do responsável"
+            value="${p.resp || ''}" data-idx="${i}" data-field="resp"
+            onchange="updPendField(this)">
+        </div>
+        <div class="pend-meta-field">
+          <div class="pend-meta-label">Prazo</div>
+          <input class="pend-meta-input" type="date"
+            value="${p.prazo || ''}" data-idx="${i}" data-field="prazo"
+            onchange="updPendField(this)">
+        </div>
+      </div>
       <div class="pend-date">Criado em: ${p.date || '—'}</div>`;
     grid.appendChild(card);
   });
@@ -862,11 +899,19 @@ function addPend(){
   const disc=document.getElementById('pendDiscSel').value;
   const status=document.getElementById('pendStatusSel').value;
   const now=new Date();
-  state.pends.push({disc,status,text:'',date:now.toLocaleDateString('pt-BR')});
+  state.pends.push({disc,status,text:'',resp:'',prazo:'',date:now.toLocaleDateString('pt-BR')});
   save();renderPends();
 }
 function delPend(i){state.pends.splice(i,1);save();renderPends();}
 function updPend(ta){state.pends[Number(ta.dataset.idx)].text=ta.value;save();}
+function updPendField(el){
+  const i=Number(el.dataset.idx);
+  const field=el.dataset.field;
+  state.pends[i][field]=el.value;
+  save();
+  // Re-render só o card para atualizar a cor do prazo sem piscar tudo
+  if(field==='prazo') renderPends();
+}
 function cycleStatus(i){
   const order=['aberta','andamento','concluida'];
   const cur=order.indexOf(state.pends[i].status);
