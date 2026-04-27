@@ -1328,8 +1328,8 @@ function _driveDisconnect() {
 function _auth() { return { Authorization: 'Bearer ' + _driveToken }; }
 
 async function _findOrCreateFile() {
-  // Busca ampla — qualquer arquivo json com kpi_state no nome, não na lixeira
-  const q = encodeURIComponent("name contains 'kpi_state' and trashed=false and mimeType='application/json'");
+  // Busca só pelo nome — sem filtro de mimeType (upload manual pode ter tipo diferente)
+  const q = encodeURIComponent("name contains 'kpi_state' and trashed=false");
   const res = await fetch(
     `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,modifiedTime,size)&orderBy=modifiedTime+desc&spaces=drive`,
     { headers: _auth() }
