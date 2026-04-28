@@ -294,17 +294,17 @@ const pctFmt = (a,b) => b>0 ? +(a/b*100).toFixed(1) : 0;
 const K_DISCS=[
   {name:'Civil',              qt:3262, ql:3262, color:'#388bfd'},
   {name:'Estrutura Metálica', qt:417,  ql:417,  color:'#bc8cff'},
-  {name:'Tubulação · Pastas', qt:499,  ql:499,  color:'#39d3bb'},
-  {name:'Tubulação · Iso',    qt:581,  ql:581,  color:'#2ab8a0'},
-  {name:'Tubulação · SK009',  qt:1461, ql:1461, color:'#1a8a78'},
+  {name:'Tubulação · Pastas', qt:499,  ql:499,  color:'#39d3bb', group:'Tubulação'},
+  {name:'Tubulação · Iso',    qt:581,  ql:581,  color:'#2ab8a0', group:'Tubulação'},
+  {name:'Tubulação · SK009',  qt:1461, ql:1461, color:'#1a8a78', group:'Tubulação'},
   {name:'Equip. Mecânicos',   qt:378,  ql:378,  color:'#f0883e'},
-  {name:'Equip. Mecânicos · SK',qt:252,ql:252,  color:'#c8662e'},
+  {name:'Equip. Mecânicos · SK',qt:252,ql:252,  color:'#c8662e', group:'Equip. Mecânicos'},
   {name:'Elétrico · Normal',  qt:372,  ql:372,  color:'#d29922'},
-  {name:'Elétrico · MTO Normal',qt:6,  ql:6,    color:'#b8831e'},
-  {name:'Elétrico · SK006',   qt:891,  ql:891,  color:'#a06e18'},
-  {name:'Elétrico · Material',qt:3,    ql:3,    color:'#885a12'},
+  {name:'Elétrico · MTO Normal',qt:6,  ql:6,    color:'#b8831e', group:'Elétrico'},
+  {name:'Elétrico · SK006',   qt:891,  ql:891,  color:'#a06e18', group:'Elétrico'},
+  {name:'Elétrico · Material',qt:3,    ql:3,    color:'#885a12', group:'Elétrico'},
   {name:'Instrumentação',     qt:6037, ql:6037, color:'#f85149'},
-  {name:'Instrumentação · SK',qt:181,  ql:181,  color:'#d03030'},
+  {name:'Instrumentação · SK',qt:181,  ql:181,  color:'#d03030', group:'Instrumentação'},
   {name:'HVAC',               qt:10,   ql:10,   color:'#58a6ff'},
   {name:'TCOM',               qt:68,   ql:25,   color:'#79c0ff'},
   {name:'Segurança',          qt:162,  ql:162,  color:'#56d364'},
@@ -804,6 +804,13 @@ function buildRestricoes(){
         <option value="">Todas disciplinas</option>
         ${[...new Set((kState.pends||[]).map(p=>p.disc))].map(d=>`<option value="${d}">${d}</option>`).join('')}
       </select>
+      <div style="position:relative;display:flex;align-items:center">
+        <span style="position:absolute;left:8px;color:var(--g2);font-size:12px;pointer-events:none">🔍</span>
+        <input id="rest-filt-texto" type="text" placeholder="Buscar por texto..." oninput="renderRestricoes()"
+          style="border:1px solid var(--bdr);border-radius:6px;padding:4px 8px 4px 26px;font-size:10.5px;outline:none;color:var(--navy);background:#fff;width:200px">
+        <button onclick="document.getElementById('rest-filt-texto').value='';renderRestricoes()" title="Limpar busca"
+          style="position:absolute;right:5px;background:none;border:none;cursor:pointer;color:var(--g2);font-size:13px;line-height:1;padding:0">✕</button>
+      </div>
       <span id="rest-count" style="font-size:10.5px;color:var(--g2)"></span>
     </div>
   </div>
@@ -812,15 +819,28 @@ function buildRestricoes(){
   <div class="footer">Criado por Anderson Souza · Rev. 5.0</div>`;
   renderRestricoes();
 }
+function _highlight(text, term) {
+  if (!term) return text;
+  const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return text.replace(new RegExp('(' + escaped + ')', 'gi'),
+    '<mark style="background:#FFF176;color:#333;border-radius:2px;padding:0 1px">$1</mark>');
+}
 function renderRestricoes(){
   const filtStatus=document.getElementById('rest-filt-status')?.value||'';
   const filtDisc=document.getElementById('rest-filt-disc')?.value||'';
+  const filtTexto=(document.getElementById('rest-filt-texto')?.value||'').trim().toLowerCase();
   let pends=(kState.pends||[]);
   if(filtStatus) pends=pends.filter(p=>p.status===filtStatus);
   if(filtDisc) pends=pends.filter(p=>p.disc===filtDisc);
+  if(filtTexto) pends=pends.filter(p=>
+    (p.text||'').toLowerCase().includes(filtTexto)||
+    (p.disc||'').toLowerCase().includes(filtTexto)||
+    (p.resp||'').toLowerCase().includes(filtTexto)||
+    (p.prazo||'').toLowerCase().includes(filtTexto)
+  );
 
   const el=document.getElementById('rest-count');
-  if(el) el.textContent=`${pends.length} pendência(s)`;
+  if(el) el.textContent=`${pends.length} de ${(kState.pends||[]).length} pendência(s)`;
 
   const kEl=document.getElementById('rest-kpis');
   const aberta=(kState.pends||[]).filter(p=>p.status==='aberta').length;
@@ -834,18 +854,19 @@ function renderRestricoes(){
 
   const statusColors={aberta:'var(--red)',andamento:'var(--yellow)',concluida:'var(--green)'};
   const statusLabels={aberta:'🔴 Aberta',andamento:'🟡 Em andamento',concluida:'🟢 Concluída'};
+  const term=document.getElementById('rest-filt-texto')?.value||'';
 
   const grid=document.getElementById('rest-grid');
   if(grid) grid.innerHTML=pends.length===0
-    ?`<div style="padding:40px;text-align:center;color:var(--g2);font-size:12px">Nenhuma pendência encontrada</div>`
+    ?`<div style="padding:40px;text-align:center;color:var(--g2);font-size:12px">${filtTexto?'Nenhuma pendência encontrada para "'+filtTexto+'"':'Nenhuma pendência encontrada'}</div>`
     :pends.map(p=>`
       <div class="rest-card ${p.status||'aberta'}">
-        <span class="rest-disc">${p.disc||'Geral'}</span>
+        <span class="rest-disc">${_highlight(p.disc||'Geral',term)}</span>
         <span class="badge" style="background:${statusColors[p.status]||'var(--grey)'}22;color:${statusColors[p.status]||'var(--grey)'};margin-left:6px">${statusLabels[p.status]||p.status}</span>
-        <div class="rest-text">${(p.text||'').trim()}</div>
+        <div class="rest-text">${_highlight((p.text||'').trim(),term)}</div>
         <div class="rest-meta">
           ${p.date?`<span>📅 ${p.date}</span>`:''}
-          ${p.resp?`<span>👤 ${p.resp}</span>`:''}
+          ${p.resp?`<span>👤 ${_highlight(p.resp,term)}</span>`:''}
           ${p.prazo?`<span>⏰ ${p.prazo}</span>`:''}
         </div>
       </div>`).join('');
