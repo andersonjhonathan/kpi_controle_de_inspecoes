@@ -296,17 +296,17 @@ const pctFmt = (a,b) => b>0 ? +(a/b*100).toFixed(1) : 0;
 const K_DISCS=[
   {name:'Civil',              qt:3262, ql:3262, color:'#388bfd'},
   {name:'Estrutura Metálica', qt:417,  ql:417,  color:'#bc8cff'},
-  {name:'Tubulação · Pastas', qt:499,  ql:499,  color:'#39d3bb'},
-  {name:'Tubulação · Iso',    qt:581,  ql:581,  color:'#2ab8a0'},
-  {name:'Tubulação · SK009',  qt:1461, ql:1461, color:'#1a8a78'},
+  {name:'Tubulação · Pastas', qt:499,  ql:499,  color:'#39d3bb', group:'Tubulação'},
+  {name:'Tubulação · Iso',    qt:581,  ql:581,  color:'#2ab8a0', group:'Tubulação'},
+  {name:'Tubulação · SK009',  qt:1461, ql:1461, color:'#1a8a78', group:'Tubulação'},
   {name:'Equip. Mecânicos',   qt:378,  ql:378,  color:'#f0883e'},
-  {name:'Equip. Mecânicos · SK',qt:252,ql:252,  color:'#c8662e'},
+  {name:'Equip. Mecânicos · SK',qt:252,ql:252,  color:'#c8662e', group:'Equip. Mecânicos'},
   {name:'Elétrico · Normal',  qt:372,  ql:372,  color:'#d29922'},
-  {name:'Elétrico · MTO Normal',qt:6,  ql:6,    color:'#b8831e'},
-  {name:'Elétrico · SK006',   qt:891,  ql:891,  color:'#a06e18'},
-  {name:'Elétrico · Material',qt:3,    ql:3,    color:'#885a12'},
+  {name:'Elétrico · MTO Normal',qt:6,  ql:6,    color:'#b8831e', group:'Elétrico'},
+  {name:'Elétrico · SK006',   qt:891,  ql:891,  color:'#a06e18', group:'Elétrico'},
+  {name:'Elétrico · Material',qt:3,    ql:3,    color:'#885a12', group:'Elétrico'},
   {name:'Instrumentação',     qt:6037, ql:6037, color:'#f85149'},
-  {name:'Instrumentação · SK',qt:181,  ql:181,  color:'#d03030'},
+  {name:'Instrumentação · SK',qt:181,  ql:181,  color:'#d03030', group:'Instrumentação'},
   {name:'HVAC',               qt:10,   ql:10,   color:'#58a6ff'},
   {name:'TCOM',               qt:68,   ql:25,   color:'#79c0ff'},
   {name:'Segurança',          qt:162,  ql:162,  color:'#56d364'},
@@ -1479,7 +1479,7 @@ function kRenderTable(){
     else if(kIsWeekend(d))cls+=' weekend-th';
     hHtml+=`<th class="${cls}">${dow}<br><span style="font-size:9px;font-weight:400">${kFmtDisp(d)}</span></th>`;
   });
-  hHtml+=`<th style="min-width:60px">%</th><th class="kv-acum-header" style="min-width:90px">Acum.<br><span style="font-size:9px;font-weight:400">qt+ql</span></th></tr>`;
+  hHtml+=`<th style="min-width:55px;text-align:center">% Sem.</th><th class="kv-acum-header" style="min-width:70px;text-align:center">PROG.<br><span style="font-size:9px;font-weight:400">semana</span></th><th class="kv-acum-header" style="min-width:70px;text-align:center">REAL.<br><span style="font-size:9px;font-weight:400">semana</span></th><th class="kv-acum-header" style="min-width:55px;text-align:center">%<br><span style="font-size:9px;font-weight:400">semana</span></th></tr>`;
   const thead=document.getElementById('k-tHead'); if(thead) thead.innerHTML=hHtml;
   kRenderTableBody(week,discs,showQt,showQl);
 }
@@ -1501,9 +1501,21 @@ function kRenderTableBody(week,discs,showQt,showQl){
     if(showQl){rowDefs.push({lbl:'Prog.Ql',arr:'prog_ql',isProg:true});rowDefs.push({lbl:'Real.Ql',arr:'real_ql',isProg:false});}
     const rs=rowDefs.length+1;
     let discCell=`<td class="kv-disc-cell" rowspan="${rs}" style="border-left:3px solid ${disc.color}"><div class="kv-disc-name">${disc.name}</div></td>`;
-    let acQt=0,acQl=0;
-    K_WEEKS.forEach(w=>{const x=kState.weeks[w.num]?.disc[disc.name];if(x){acQt+=(x.real_qt||[]).reduce((a,b)=>a+b,0);acQl+=(x.real_ql||[]).reduce((a,b)=>a+b,0);}});
-    const acumCell=`<td class="kv-acum-cell" rowspan="${rs}"><div class="kv-acum-split"><div class="kv-acum-split-item"><div class="kv-acum-split-val" style="color:var(--navy)">${acQt}</div><div class="kv-acum-split-tag kv-tag-qt">qt</div></div><div class="kv-acum-split-item"><div class="kv-acum-split-val" style="color:#059669">${acQl}</div><div class="kv-acum-split-tag kv-tag-ql">ql</div></div></div></td>`;
+    // Totais da SEMANA selecionada (soma dos 7 dias)
+    const wProgQt=(wd.prog_qt||[]).reduce((a,b)=>a+b,0);
+    const wRealQt=(wd.real_qt||[]).reduce((a,b)=>a+b,0);
+    const wProgQl=(wd.prog_ql||[]).reduce((a,b)=>a+b,0);
+    const wRealQl=(wd.real_ql||[]).reduce((a,b)=>a+b,0);
+    // Mostra conforme o tipo de visualização ativo
+    const acProg=showQt&&showQl?(wProgQt+wProgQl):showQt?wProgQt:wProgQl;
+    const acReal=showQt&&showQl?(wRealQt+wRealQl):showQt?wRealQt:wRealQl;
+    const acPct=acProg>0?Math.round(acReal/acProg*100):null;
+    const acPctCls=acPct===null?'pct-dash':acPct>=90?'pct-good':acPct>=70?'pct-warn':'pct-bad';
+    // 3 colunas: PROG semana / REAL semana / %
+    const acumCells=
+      `<td class="kv-acum-cell" rowspan="${rs}" style="text-align:center;color:var(--navy);font-weight:700">${acProg||'—'}</td>`+
+      `<td class="kv-acum-cell" rowspan="${rs}" style="text-align:center;color:#059669;font-weight:700">${acReal||'—'}</td>`+
+      `<td class="kv-acum-cell" rowspan="${rs}" style="text-align:center"><span class="kv-pct-cell ${acPctCls}" style="font-size:12px">${acPct!==null?acPct+'%':'—'}</span></td>`;
     rowDefs.forEach((r,ri)=>{
       let cells='';
       week.days.forEach((day,di)=>{
@@ -1512,8 +1524,8 @@ function kRenderTableBody(week,discs,showQt,showQl){
         cells+=`<td class="kv-day-cell ${dc}"><input type="number" min="0" value="${v||''}" placeholder="0" onchange="kSetVal('${disc.name}',${week.num},'${r.arr}',${di},this.value)" onfocus="this.select()"></td>`;
       });
       const tot=(wd[r.arr]||[]).reduce((a,b)=>a+b,0);
-      if(ri===0) html+=`<tr>${discCell}<td class="kv-ind-cell">${r.lbl}</td>${cells}<td class="kv-acum-cell" style="font-size:11px">${tot||''}</td>${acumCell}</tr>`;
-      else html+=`<tr><td class="kv-ind-cell">${r.lbl}</td>${cells}<td class="kv-acum-cell" style="font-size:11px">${tot||''}</td></tr>`;
+      if(ri===0) html+=`<tr>${discCell}<td class="kv-ind-cell">${r.lbl}</td>${cells}<td class="kv-acum-cell" style="font-size:11px;text-align:center">${tot||'—'}</td>${acumCells}</tr>`;
+      else html+=`<tr><td class="kv-ind-cell">${r.lbl}</td>${cells}<td class="kv-acum-cell" style="font-size:11px;text-align:center">${tot||'—'}</td></tr>`;
     });
     const totProg=(wd.prog_qt||[]).reduce((a,b)=>a+b,0)+(wd.prog_ql||[]).reduce((a,b)=>a+b,0);
     const totReal=(wd.real_qt||[]).reduce((a,b)=>a+b,0)+(wd.real_ql||[]).reduce((a,b)=>a+b,0);
