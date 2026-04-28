@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>Autenticando...</title></head>
+<body>
+<script>
+// Este arquivo é o redirect_uri do OAuth2.
+// Captura o access_token da URL e envia para a janela pai via postMessage.
+(function() {
+  const hash = location.hash || location.search;
+  const params = new URLSearchParams(hash.replace(/^[#?]/, ''));
+  const token = params.get('access_token');
+  if (token && window.opener) {
+    window.opener.postMessage({ type: 'oauth_token', token }, location.origin);
+  }
+  // Fecha o popup automaticamente
+  setTimeout(() => window.close(), 500);
+})();
+</script>
+<p style="font-family:sans-serif;text-align:center;margin-top:40px;color:#555">
+  ✅ Autenticado! Esta janela fechará automaticamente...
+</p>
+</body>
+</html>

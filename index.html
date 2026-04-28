@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>HC² GASLUB EPC05 · Dashboard Inspeção v5</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 :root{
   --navy:#182554;--orange:#E56C35;--white:#fff;--grey:#4D4F53;
@@ -1262,7 +1262,9 @@ function _setStatus(msg, color) {
 // ── OAuth2 Implicit Flow — abre popup e captura o token ──
 function _getToken() {
   return new Promise((resolve, reject) => {
-    const redirectUri = location.origin + location.pathname;
+    // redirect_uri = exatamente o mesmo que está autorizado no Google Cloud Console
+    // Para GitHub Pages: https://andersonjhonathan.github.io/kpi_controle_de_inspecoes/
+    const redirectUri = location.origin + location.pathname.replace(/\/[^\/]*$/, '/') + 'oauth_redirect.html';
     const url = 'https://accounts.google.com/o/oauth2/v2/auth?' + new URLSearchParams({
       client_id:     DRIVE_CLIENT_ID,
       redirect_uri:  redirectUri,
@@ -1270,29 +1272,41 @@ function _getToken() {
       scope:         DRIVE_SCOPE,
       prompt:        'select_account',
     });
+
+    // Escutar mensagem postMessage vinda do popup (oauth_redirect.html)
+    function onMsg(e) {
+      if (e.origin !== location.origin) return;
+      if (e.data && e.data.type === 'oauth_token') {
+        cleanup();
+        e.data.token ? resolve(e.data.token) : reject(new Error('Token não recebido'));
+      }
+    }
+    window.addEventListener('message', onMsg);
+
     const popup = window.open(url, 'google_oauth', 'width=500,height=620,left=200,top=100');
-    if (!popup) { reject(new Error('Popup bloqueado! Permita popups para este site.')); return; }
-    // Verificar a cada 300ms se o popup redirecionou de volta com o token
+    if (!popup) { window.removeEventListener('message', onMsg); reject(new Error('Popup bloqueado! Permita popups para este site.')); return; }
+
+    // Fallback: polling direto (funciona quando popup e parent têm mesmo origin)
     const interval = setInterval(() => {
       try {
         const href = popup.location.href;
-        if (href.includes('access_token')) {
-          clearInterval(interval);
-          popup.close();
+        if (href && href.includes('access_token')) {
           const params = new URLSearchParams(href.split('#')[1] || href.split('?')[1]);
-          const token  = params.get('access_token');
-          token ? resolve(token) : reject(new Error('Token não recebido'));
+          const token = params.get('access_token');
+          if (token) { cleanup(); resolve(token); }
         }
-        if (popup.closed) { clearInterval(interval); reject(new Error('Login cancelado pelo usuário')); }
-      } catch(e) {
-        // Cross-origin enquanto no Google — aguardar redirecionamento
-      }
-    }, 300);
-    setTimeout(() => {
+      } catch(e) { /* cross-origin enquanto no Google — aguardar redirecionamento */ }
+      if (popup.closed) { cleanup(); reject(new Error('Login cancelado pelo usuário')); }
+    }, 400);
+
+    const timeout = setTimeout(() => { cleanup(); reject(new Error('Tempo de login expirado')); }, 180000);
+
+    function cleanup() {
       clearInterval(interval);
-      if (!popup.closed) popup.close();
-      reject(new Error('Tempo de login expirado'));
-    }, 180000);
+      clearTimeout(timeout);
+      window.removeEventListener('message', onMsg);
+      if (popup && !popup.closed) popup.close();
+    }
   });
 }
 
