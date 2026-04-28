@@ -271,6 +271,7 @@ tr:hover td{background:#eef3ff!important}
     <button class="nav-tab" onclick="showV('curvas')">〰️ Curvas S</button>
     <button class="nav-tab" onclick="showV('wla6')">🗓️ 6 Semanas</button>
     <button class="nav-tab" onclick="showV('restricoes')">🚨 Restrições<span class="nav-badge" id="nb-rest">0</span></button>
+    <button class="nav-tab" onclick="showV('rundown')">📋 Rundown</button>
     <button class="nav-tab" onclick="showV('kpi')">📊 KPI Semanal</button>
   </nav>
 </header>
@@ -280,6 +281,7 @@ tr:hover td{background:#eef3ff!important}
   <div class="view" id="view-curvas"></div>
   <div class="view" id="view-wla6"></div>
   <div class="view" id="view-restricoes"></div>
+  <div class="view" id="view-rundown"></div>
   <div class="view" id="view-kpi"></div>
 </div>
 
@@ -450,7 +452,7 @@ function todayLine(labels) {
 }
 
 // ── VIEW ROUTER ──────────────────────────────────────────
-const VIEWS=['dashboard','curvas','wla6','restricoes','kpi'];
+const VIEWS=['dashboard','curvas','wla6','restricoes','rundown','kpi'];
 let _built={};
 function showV(v){
   document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
@@ -463,6 +465,7 @@ function buildView(v){
   else if(v==='curvas') buildCurvas();
   else if(v==='wla6') buildWla6();
   else if(v==='restricoes') buildRestricoes();
+  else if(v==='rundown') buildRundown();
   else if(v==='kpi') buildKpiView();
 }
 function rebuildAll(){
@@ -634,36 +637,104 @@ function buildDashboard(){
 // ══════════════════════════════════════════════════════════
 // VIEW: CURVAS S
 // ══════════════════════════════════════════════════════════
-let _curvaDisc = K_DISCS[0].name;
+let _curvaDisc = 'GERAL';
+let _curvaTipo = 'todos'; // 'todos' | 'qt' | 'ql'
+
 function buildCurvas(){
   const c=document.getElementById('view-curvas'); if(!c) return;
   c.innerHTML=`
-  <div class="disc-tabs" id="curva-disc-tabs"></div>
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:10px">
+    <div class="disc-tabs" id="curva-disc-tabs" style="flex:1;min-width:0"></div>
+    <div style="display:flex;gap:4px;background:var(--bg);border-radius:7px;padding:3px;flex-shrink:0">
+      <button onclick="setCurvaTipo('todos')" id="ctab-todos" style="${_curvaTipo==='todos'?'background:var(--navy);color:#fff':'background:transparent;color:var(--g2)'};font-size:10.5px;padding:4px 13px;border-radius:5px;border:none;font-weight:700;cursor:pointer;font-family:inherit">Qt + Ql</button>
+      <button onclick="setCurvaTipo('qt')"    id="ctab-qt"    style="${_curvaTipo==='qt'?'background:var(--navy);color:#fff':'background:transparent;color:var(--g2)'};font-size:10.5px;padding:4px 13px;border-radius:5px;border:none;font-weight:700;cursor:pointer;font-family:inherit">Quantitativo</button>
+      <button onclick="setCurvaTipo('ql')"    id="ctab-ql"    style="${_curvaTipo==='ql'?'background:var(--navy);color:#fff':'background:transparent;color:var(--g2)'};font-size:10.5px;padding:4px 13px;border-radius:5px;border:none;font-weight:700;cursor:pointer;font-family:inherit">Qualitativo</button>
+    </div>
+  </div>
   <div class="kpi-row" id="curva-kpis"></div>
   <div class="grid2" style="margin-bottom:12px">
     <div class="card"><div class="card-hdr"><div class="card-title" id="curva-title1">Curva S Acumulada</div><div class="card-info">ⓘ Programado vs Realizado acumulado</div></div><div class="cw h300"><canvas id="ch-curva-s"></canvas></div></div>
-    <div class="card"><div class="card-hdr"><div class="card-title">Realizado por Semana</div><div class="card-info">ⓘ Barras semanais</div></div><div class="cw h300"><canvas id="ch-curva-bar"></canvas></div></div>
+    <div class="card"><div class="card-hdr"><div class="card-title" id="curva-title2">Realizado por Semana</div><div class="card-info">ⓘ Barras semanais</div></div><div class="cw h300"><canvas id="ch-curva-bar"></canvas></div></div>
   </div>
   <div class="footer">Criado por Anderson Souza · Rev. 5.0</div>`;
 
   buildCurvaDiscTabs();
   renderCurva();
 }
+
 function buildCurvaDiscTabs(){
   const el=document.getElementById('curva-disc-tabs'); if(!el) return;
-  el.innerHTML=[{name:'GERAL',color:'var(--navy)'},...K_DISCS.filter(d=>d.qt>0||d.ql>0)].map(d=>{
+  // GERAL usa azul royal bonito em vez do navy escuro
+  const tabs=[{name:'GERAL',color:'#3B82F6'},...K_DISCS.filter(d=>d.qt>0||d.ql>0)];
+  el.innerHTML=tabs.map(d=>{
     const active=d.name===_curvaDisc;
+    const cor=d.color||'var(--navy)';
     return `<button class="disc-tab ${active?'active':''}" onclick="setCurvaDisc('${d.name}')"
-      style="${active?`background:${d.color||'var(--navy)'};color:#fff;border-color:${d.color||'var(--navy)'}`:`border-color:${d.color||'var(--navy)'}`}">${d.name}</button>`;
+      style="${active?`background:${cor};color:#fff;border-color:${cor}`:`border-color:${cor};color:${cor}`}">${d.name}</button>`;
   }).join('');
 }
+
 function setCurvaDisc(d){ _curvaDisc=d; buildCurvaDiscTabs(); renderCurva(); }
+function setCurvaTipo(t){
+  _curvaTipo=t;
+  ['todos','qt','ql'].forEach(x=>{
+    const btn=document.getElementById('ctab-'+x);
+    if(btn) Object.assign(btn.style,x===t?{background:'var(--navy)',color:'#fff'}:{background:'transparent',color:'var(--g2)'});
+  });
+  renderCurva();
+}
+
+function buildCurvesFiltered(discName, tipo) {
+  // Build cumulative curves filtered by tipo (todos/qt/ql)
+  const prog=[], real=[], labels=[];
+  let cp=0, cr=0;
+  K_WEEKS.forEach(w=>{
+    const d=kState.weeks[w.num]?.disc[discName];
+    let p=0,r=0;
+    if(d){
+      if(tipo==='qt'||tipo==='todos'){ p+=(d.prog_qt||[]).reduce((a,b)=>a+b,0); r+=(d.real_qt||[]).reduce((a,b)=>a+b,0); }
+      if(tipo==='ql'||tipo==='todos'){ p+=(d.prog_ql||[]).reduce((a,b)=>a+b,0); r+=(d.real_ql||[]).reduce((a,b)=>a+b,0); }
+    }
+    cp+=p; cr+=r;
+    prog.push(cp); real.push(cr);
+    labels.push('S'+String(w.num).padStart(3,'0'));
+  });
+  return {prog,real,labels};
+}
+
+function buildCurvesGlobalFiltered(tipo) {
+  const prog=[], real=[], labels=[];
+  let cp=0, cr=0;
+  K_WEEKS.forEach(w=>{
+    let p=0,r=0;
+    K_DISCS.forEach(d=>{
+      const wd=kState.weeks[w.num]?.disc[d.name]; if(!wd) return;
+      if(tipo==='qt'||tipo==='todos'){ p+=(wd.prog_qt||[]).reduce((a,b)=>a+b,0); r+=(wd.real_qt||[]).reduce((a,b)=>a+b,0); }
+      if(tipo==='ql'||tipo==='todos'){ p+=(wd.prog_ql||[]).reduce((a,b)=>a+b,0); r+=(wd.real_ql||[]).reduce((a,b)=>a+b,0); }
+    });
+    cp+=p; cr+=r;
+    prog.push(cp); real.push(cr);
+    labels.push('S'+String(w.num).padStart(3,'0'));
+  });
+  return {prog,real,labels};
+}
+
 function renderCurva(){
   const disc=_curvaDisc;
-  const {prog,real,labels}=disc==='GERAL'?buildCurvesGlobal():buildCurves(disc);
-  const d=K_DISCS.find(x=>x.name===disc)||{color:'var(--navy)',qt:0,ql:0};
-  const cor=d.color||'#182554';
-  const totDisc=disc==='GERAL'?K_DISCS.reduce((s,x)=>s+(x.qt+x.ql),0):(d.qt+d.ql);
+  const tipo=_curvaTipo;
+  const tipoLabel=tipo==='qt'?' · Quantitativo':tipo==='ql'?' · Qualitativo':'';
+  const {prog,real,labels}=disc==='GERAL'?buildCurvesGlobalFiltered(tipo):buildCurvesFiltered(disc,tipo);
+  const d=K_DISCS.find(x=>x.name===disc)||{color:'#3B82F6',qt:0,ql:0};
+  const cor=disc==='GERAL'?'#3B82F6':(d.color||'#3B82F6');
+
+  // Total previsto conforme tipo
+  let totDisc=0;
+  if(disc==='GERAL'){
+    K_DISCS.forEach(x=>{ totDisc+=tipo==='qt'?x.qt:tipo==='ql'?x.ql:x.qt+x.ql; });
+  } else {
+    totDisc=tipo==='qt'?d.qt:tipo==='ql'?d.ql:d.qt+d.ql;
+  }
+
   const acum=real[real.length-1]||0;
   const progAcum=prog[prog.length-1]||0;
   const cidx=K_WEEKS.findIndex(w=>w.num===CW);
@@ -673,36 +744,37 @@ function renderCurva(){
 
   // KPIs
   const kEl=document.getElementById('curva-kpis');
-  if(kEl) kEl.innerHTML=`
-    <div class="kpi" style="border-left-color:${cor}"><div class="kpi-lbl">Total Previsto</div><div class="kpi-val" style="color:${cor}">${Nf(totDisc)}</div><div class="kpi-sub">itens</div></div>
-    <div class="kpi" style="border-left-color:var(--green)"><div class="kpi-lbl">Realizado Acum.</div><div class="kpi-val" style="color:var(--green)">${Nf(Math.round(acum))}</div><div class="kpi-sub">${gPct}%</div><div class="kpi-bar"><div class="kpi-fill" style="width:${Math.min(gPct,100)}%;background:var(--green)"></div></div></div>
-    <div class="kpi" style="border-left-color:var(--orange)"><div class="kpi-lbl">Prog. Semana</div><div class="kpi-val" style="color:var(--orange)">${Nf(Math.round(semP))}</div></div>
-    <div class="kpi" style="border-left-color:var(--green)"><div class="kpi-lbl">Real. Semana</div><div class="kpi-val" style="color:var(--green)">${Nf(Math.round(semR))}</div></div>
-    <div class="kpi" style="border-left-color:${(acum-progAcum)>=0?'var(--green)':'var(--red)'}"><div class="kpi-lbl">Desvio Acum.</div><div class="kpi-val" style="color:${(acum-progAcum)>=0?'var(--green)':'var(--red)'}">${(acum-progAcum)>=0?'+':''}${Nf(Math.round(acum-progAcum))}</div></div>`;
+  if(kEl) kEl.innerHTML=
+    `<div class="kpi" style="border-left-color:${cor}"><div class="kpi-lbl">Total Previsto</div><div class="kpi-val" style="color:${cor}">${Nf(totDisc)}</div><div class="kpi-sub">${tipo==='todos'?'Qt + Ql':tipo==='qt'?'Quantitativo':'Qualitativo'}</div></div>`+
+    `<div class="kpi" style="border-left-color:var(--green)"><div class="kpi-lbl">Realizado Acum.</div><div class="kpi-val" style="color:var(--green)">${Nf(Math.round(acum))}</div><div class="kpi-sub">${gPct}%</div><div class="kpi-bar"><div class="kpi-fill" style="width:${Math.min(gPct,100)}%;background:var(--green)"></div></div></div>`+
+    `<div class="kpi" style="border-left-color:var(--orange)"><div class="kpi-lbl">Prog. Semana</div><div class="kpi-val" style="color:var(--orange)">${Nf(Math.round(semP))}</div></div>`+
+    `<div class="kpi" style="border-left-color:var(--green)"><div class="kpi-lbl">Real. Semana</div><div class="kpi-val" style="color:var(--green)">${Nf(Math.round(semR))}</div></div>`+
+    `<div class="kpi" style="border-left-color:${(acum-progAcum)>=0?'var(--green)':'var(--red)'}"><div class="kpi-lbl">Desvio Acum.</div><div class="kpi-val" style="color:${(acum-progAcum)>=0?'var(--green)':'var(--red)'}">${(acum-progAcum)>=0?'+':''}${Nf(Math.round(acum-progAcum))}</div></div>`;
 
-  const titleEl=document.getElementById('curva-title1');
-  if(titleEl) titleEl.textContent=`Curva S — ${disc==='GERAL'?'Todas as Disciplinas':disc}`;
+  const discLabel=disc==='GERAL'?'Todas as Disciplinas':disc;
+  const t1=document.getElementById('curva-title1'); if(t1) t1.textContent=`Curva S — ${discLabel}${tipoLabel}`;
+  const t2=document.getElementById('curva-title2'); if(t2) t2.textContent=`Realizado/Semana — ${discLabel}${tipoLabel}`;
 
-  // S-curve
+  // Curva S acumulada
   mkChart('ch-curva-s',{
     type:'line',plugins:[todayLine(labels)],
     data:{labels,datasets:[
       {label:'Programado acum.',data:prog,borderColor:'#182554',backgroundColor:'rgba(24,37,84,.07)',fill:true,tension:.4,borderWidth:2.5,pointRadius:2,spanGaps:true},
-      {label:'Realizado acum.',data:real,borderColor:cor,backgroundColor:cor+'18',fill:true,tension:.4,borderWidth:2.5,pointRadius:2,spanGaps:true},
+      {label:'Realizado acum.', data:real,borderColor:cor,backgroundColor:cor+'22',fill:true,tension:.4,borderWidth:2.5,pointRadius:2,spanGaps:true},
     ]},
     options:{responsive:true,maintainAspectRatio:false,
       plugins:{legend:{position:'bottom',labels:{font:{size:10},boxWidth:14}},tooltip:{mode:'index',intersect:false,callbacks:{afterBody:ctx=>{const i=ctx[0]?.dataIndex;if(i===undefined)return[];const dev=(real[i]||0)-(prog[i]||0);return[`Desvio: ${dev>=0?'+':''}${Nf(Math.round(dev))}`];}}}},
       scales:{x:{grid:{display:false},ticks:{font:{size:8.5},maxTicksLimit:11,maxRotation:45}},y:{grid:{color:'#F0F3FA'},ticks:{callback:v=>Nf(v),font:{size:9}}}}}
   });
 
-  // Bar weekly
+  // Barras semanais
   const weeklyP=prog.map((v,i)=>Math.round(i===0?v:v-(prog[i-1]||0)));
   const weeklyR=real.map((v,i)=>Math.round(i===0?v:v-(real[i-1]||0)));
   mkChart('ch-curva-bar',{
     type:'bar',plugins:[todayLine(labels)],
     data:{labels,datasets:[
       {label:'Programado/sem.',data:weeklyP,backgroundColor:'#182554aa',borderRadius:3,borderSkipped:false},
-      {label:'Realizado/sem.',data:weeklyR,backgroundColor:cor+'cc',borderRadius:3,borderSkipped:false},
+      {label:'Realizado/sem.', data:weeklyR,backgroundColor:cor+'cc',borderRadius:3,borderSkipped:false},
     ]},
     options:{responsive:true,maintainAspectRatio:false,
       plugins:{legend:{position:'bottom',labels:{font:{size:10},boxWidth:12}},tooltip:{mode:'index',intersect:false}},
@@ -812,12 +884,145 @@ function buildRestricoes(){
           style="position:absolute;right:5px;background:none;border:none;cursor:pointer;color:var(--g2);font-size:13px;line-height:1;padding:0">✕</button>
       </div>
       <span id="rest-count" style="font-size:10.5px;color:var(--g2)"></span>
+      <button onclick="exportRestricoesPDF()" title="Exportar PDF"
+        style="display:flex;align-items:center;gap:6px;background:#C8102E;color:#fff;border:none;border-radius:7px;padding:5px 14px;font-size:10.5px;font-weight:700;cursor:pointer;white-space:nowrap;box-shadow:0 2px 8px rgba(200,16,46,.3);transition:.15s"
+        onmouseover="this.style.background='#a50d26'" onmouseout="this.style.background='#C8102E'">
+        📄 Exportar PDF
+      </button>
     </div>
   </div>
   <div class="kpi-row" id="rest-kpis"></div>
   <div class="rest-grid" id="rest-grid"></div>
   <div class="footer">Criado por Anderson Souza · Rev. 5.0</div>`;
   renderRestricoes();
+}
+
+function exportRestricoesPDF(){
+  // Captura filtros ativos
+  const filtStatus=document.getElementById('rest-filt-status')?.value||'';
+  const filtDisc=document.getElementById('rest-filt-disc')?.value||'';
+  const filtTexto=(document.getElementById('rest-filt-texto')?.value||'').trim().toLowerCase();
+  let pends=(kState.pends||[]);
+  if(filtStatus) pends=pends.filter(p=>p.status===filtStatus);
+  if(filtDisc)   pends=pends.filter(p=>p.disc===filtDisc);
+  if(filtTexto)  pends=pends.filter(p=>
+    (p.text||'').toLowerCase().includes(filtTexto)||
+    (p.disc||'').toLowerCase().includes(filtTexto)||
+    (p.resp||'').toLowerCase().includes(filtTexto)||
+    (p.prazo||'').toLowerCase().includes(filtTexto)
+  );
+
+  const statusColors={aberta:'#C8102E',andamento:'#D97706',concluida:'#059669'};
+  const statusBgs   ={aberta:'#FEE2E2',andamento:'#FEF3C7',concluida:'#D1FAE5'};
+  const statusLabels={aberta:'🔴 Aberta',andamento:'🟡 Em andamento',concluida:'🟢 Concluída'};
+  const aberta  =(kState.pends||[]).filter(p=>p.status==='aberta').length;
+  const andamento=(kState.pends||[]).filter(p=>p.status==='andamento').length;
+  const concluida=(kState.pends||[]).filter(p=>p.status==='concluida').length;
+  const now=new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'});
+  const semana='S'+String(CW).padStart(3,'0');
+
+  const filtroDesc=[
+    filtStatus?statusLabels[filtStatus]:'Todos os status',
+    filtDisc||'Todas as disciplinas',
+    filtTexto?`"${filtTexto}"`:'',
+  ].filter(Boolean).join(' · ');
+
+  const rows=pends.map((p,i)=>{
+    const sc=statusColors[p.status]||'#666';
+    const sb=statusBgs[p.status]||'#f5f5f5';
+    const sl=statusLabels[p.status]||p.status||'—';
+    return `
+    <tr style="page-break-inside:avoid">
+      <td style="width:28px;text-align:center;font-size:11px;color:#6B7280;font-weight:600;padding:10px 6px;border-bottom:1px solid #E5E7EB">${i+1}</td>
+      <td style="padding:10px 8px;border-bottom:1px solid #E5E7EB">
+        <div style="display:flex;align-items:flex-start;gap:8px">
+          <div style="flex:1">
+            <div style="display:flex;gap:6px;align-items:center;margin-bottom:5px;flex-wrap:wrap">
+              <span style="background:#DBEAFE;color:#1E40AF;font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px">${p.disc||'Geral'}</span>
+              <span style="background:${sb};color:${sc};font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;border:1px solid ${sc}33">${sl}</span>
+              ${p.prazo?`<span style="background:#F3F4F6;color:#374151;font-size:10px;padding:2px 7px;border-radius:4px">⏰ Prazo: ${p.prazo}</span>`:''}
+              ${p.resp?`<span style="background:#F3F4F6;color:#374151;font-size:10px;padding:2px 7px;border-radius:4px">👤 ${p.resp}</span>`:''}
+            </div>
+            <div style="font-size:12px;color:#111827;line-height:1.6;white-space:pre-wrap">${(p.text||'').trim()||'<em style="color:#9CA3AF">Sem descrição</em>'}</div>
+            ${p.date?`<div style="font-size:10px;color:#9CA3AF;margin-top:4px">Criado em: ${p.date}</div>`:''}
+          </div>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  const html=`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
+  <title>Restrições & Pendências — GASLUB EPC05</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI',Arial,sans-serif;background:#fff;color:#111827;font-size:12px}
+    @page{size:A4;margin:15mm 12mm 15mm 12mm}
+    @media print{.no-print{display:none!important}}
+    .header{background:linear-gradient(135deg,#182554 0%,#1e3a8a 60%,#00617F 100%);color:#fff;padding:16px 20px;border-radius:8px;margin-bottom:16px}
+    .header h1{font-size:17px;font-weight:800;margin-bottom:3px}
+    .header p{font-size:10px;opacity:.75;margin-bottom:8px}
+    .header-meta{display:flex;gap:12px;flex-wrap:wrap}
+    .meta-chip{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);border-radius:12px;padding:3px 10px;font-size:10px;font-weight:600}
+    .summary{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+    .sum-card{flex:1;min-width:100px;border-radius:7px;padding:10px 12px;border-left:4px solid}
+    .sum-card .val{font-size:22px;font-weight:900;line-height:1}
+    .sum-card .lbl{font-size:9px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;font-weight:700}
+    table{width:100%;border-collapse:collapse}
+    thead tr{background:#182554}
+    thead th{color:#fff;font-size:10px;font-weight:700;padding:8px 10px;text-align:left;text-transform:uppercase;letter-spacing:.4px}
+    tbody tr:nth-child(even) td{background:#F9FAFB}
+    .footer-bar{margin-top:16px;padding:10px 14px;background:#F3F4F6;border-radius:6px;display:flex;justify-content:space-between;font-size:9.5px;color:#6B7280}
+    .no-data{text-align:center;padding:40px;color:#9CA3AF;font-size:12px}
+  </style></head><body>
+
+  <div class="header">
+    <h1>🚨 Restrições & Pendências</h1>
+    <p>COMPLEXO BOA VENTURA · SE-4700 / U-4710 / U-4730 · Itaboraí · HDT GASLUB · GASLUB EPC05</p>
+    <div class="header-meta">
+      <span class="meta-chip">📅 ${now}</span>
+      <span class="meta-chip">${semana}</span>
+      <span class="meta-chip">${pends.length} de ${(kState.pends||[]).length} pendência(s)</span>
+      <span class="meta-chip">Filtro: ${filtroDesc}</span>
+    </div>
+  </div>
+
+  <div class="summary">
+    <div class="sum-card" style="border-color:#C8102E;background:#FEF2F2">
+      <div class="lbl" style="color:#C8102E">Abertas</div>
+      <div class="val" style="color:#C8102E">${aberta}</div>
+    </div>
+    <div class="sum-card" style="border-color:#D97706;background:#FFFBEB">
+      <div class="lbl" style="color:#D97706">Em andamento</div>
+      <div class="val" style="color:#D97706">${andamento}</div>
+    </div>
+    <div class="sum-card" style="border-color:#059669;background:#ECFDF5">
+      <div class="lbl" style="color:#059669">Concluídas</div>
+      <div class="val" style="color:#059669">${concluida}</div>
+    </div>
+    <div class="sum-card" style="border-color:#182554;background:#EFF6FF">
+      <div class="lbl" style="color:#182554">Total geral</div>
+      <div class="val" style="color:#182554">${(kState.pends||[]).length}</div>
+    </div>
+  </div>
+
+  <table>
+    <thead><tr><th style="width:32px">#</th><th>Descrição</th></tr></thead>
+    <tbody>${rows||'<tr><td colspan="2" class="no-data">Nenhuma pendência encontrada</td></tr>'}</tbody>
+  </table>
+
+  <div class="footer-bar">
+    <span>Relatório gerado em ${now} · ${new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</span>
+    <span>Anderson Souza · (21) 99641-3839 · andersonjhonathan@gmail.com</span>
+  </div>
+
+  <script>window.onload=()=>{ window.print(); }<\/script>
+  </body></html>`;
+
+  const blob=new Blob([html],{type:'text/html;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const win=window.open(url,'_blank','width=900,height=700');
+  if(!win) alert('Permita popups para exportar o PDF.');
+  setTimeout(()=>URL.revokeObjectURL(url),60000);
 }
 function _highlight(text, term) {
   if (!term) return text;
@@ -870,6 +1075,212 @@ function renderRestricoes(){
           ${p.prazo?`<span>⏰ ${p.prazo}</span>`:''}
         </div>
       </div>`).join('');
+}
+
+// ══════════════════════════════════════════════════════════
+// VIEW: RUNDOWN
+// ══════════════════════════════════════════════════════════
+let _rdWeek=null, _rdDisc='', _rdTipo='todos';
+
+function buildRundown(){
+  const c=document.getElementById('view-rundown'); if(!c) return;
+  if(_rdWeek===null) _rdWeek=CW;
+
+  c.innerHTML=`
+  <div style="background:var(--card);border-radius:var(--r);padding:12px 16px;margin-bottom:12px;box-shadow:var(--sh);display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+    <div style="font-size:12px;font-weight:800;color:var(--navy);margin-right:4px">📋 Rundown de Inspeções</div>
+    <div style="display:flex;align-items:center;gap:6px">
+      <label style="font-size:10px;font-weight:700;color:var(--g2);white-space:nowrap">SEMANA</label>
+      <select id="rd-week-sel" class="fsel" onchange="rdSetWeek(+this.value)" style="font-weight:700;color:var(--navy)">
+        ${K_WEEKS.map(w=>'<option value="'+w.num+'"'+(w.num===_rdWeek?' selected':'')+'>S'+String(w.num).padStart(3,'0')+' · '+w.days[0].slice(5).replace('-','/')+' → '+w.days[6].slice(5).replace('-','/')+'</option>').join('')}
+      </select>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px">
+      <label style="font-size:10px;font-weight:700;color:var(--g2);white-space:nowrap">DISCIPLINA</label>
+      <select id="rd-disc-sel" class="fsel" onchange="rdSetDisc(this.value)">
+        <option value="">Todas</option>
+        ${K_DISCS.filter(d=>d.qt>0||d.ql>0).map(d=>'<option value="'+d.name+'"'+(d.name===_rdDisc?' selected':'')+'>'+d.name+'</option>').join('')}
+      </select>
+    </div>
+    <div style="display:flex;gap:4px;background:var(--bg);border-radius:7px;padding:3px">
+      <button id="rd-tab-todos" onclick="rdSetTipo('todos')" style="${_rdTipo==='todos'?'background:var(--navy);color:#fff':'background:transparent;color:var(--g2)'};font-size:10.5px;padding:4px 12px;border-radius:5px;border:none;font-weight:700;cursor:pointer;font-family:inherit">Qt + Ql</button>
+      <button id="rd-tab-qt"    onclick="rdSetTipo('qt')"    style="${_rdTipo==='qt'?'background:var(--navy);color:#fff':'background:transparent;color:var(--g2)'};font-size:10.5px;padding:4px 12px;border-radius:5px;border:none;font-weight:700;cursor:pointer;font-family:inherit">Quantitativo</button>
+      <button id="rd-tab-ql"    onclick="rdSetTipo('ql')"    style="${_rdTipo==='ql'?'background:var(--navy);color:#fff':'background:transparent;color:var(--g2)'};font-size:10.5px;padding:4px 12px;border-radius:5px;border:none;font-weight:700;cursor:pointer;font-family:inherit">Qualitativo</button>
+    </div>
+    <div style="margin-left:auto;font-size:10px;color:var(--g2)" id="rd-info"></div>
+  </div>
+
+  <div class="kpi-row" id="rd-kpis" style="margin-bottom:12px"></div>
+
+  <div class="grid2" style="margin-bottom:12px">
+    <div class="card">
+      <div class="card-hdr"><div class="card-title" id="rd-chart1-title">Prog. vs Real. por Disciplina</div><div class="card-info">ⓘ Semana selecionada</div></div>
+      <div class="cw h300"><canvas id="rd-ch-disc"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-hdr"><div class="card-title">Evolução Semanal</div><div class="card-info" id="rd-chart2-info">ⓘ Todas as semanas</div></div>
+      <div class="cw h300"><canvas id="rd-ch-semanas"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card full" style="margin-bottom:12px">
+    <div class="card-hdr"><div class="card-title">Desvio Prog. vs Real. — Semana a Semana</div><div class="card-info">ⓘ Verde = adiantado · Vermelho = atrasado</div></div>
+    <div class="cw h200"><canvas id="rd-ch-desvio"></canvas></div>
+  </div>
+
+  <div class="tcard">
+    <div class="tbar"><h3 id="rd-tbl-title">Detalhamento por Disciplina</h3><div style="font-size:10px;color:var(--g2)" id="rd-tbl-sub"></div></div>
+    <div class="twrap"><table><thead id="rd-thead"></thead><tbody id="rd-tbody"></tbody></table></div>
+  </div>
+  <div class="footer">Criado por Anderson Souza · Rev. 5.0</div>`;
+
+  renderRundown();
+}
+
+function rdSetWeek(w){ _rdWeek=w; _built.rundown=0; buildRundown(); }
+function rdSetDisc(d){ _rdDisc=d; _built.rundown=0; buildRundown(); }
+function rdSetTipo(t){ _rdTipo=t; _built.rundown=0; buildRundown(); }
+
+function rdGetVal(disc,weekNum,tipo){
+  const wd=kState.weeks[weekNum]?.disc[disc];
+  if(!wd) return{prog:0,real:0};
+  const sum=arr=>(arr||[]).reduce((a,b)=>a+b,0);
+  if(tipo==='qt') return{prog:sum(wd.prog_qt),real:sum(wd.real_qt)};
+  if(tipo==='ql') return{prog:sum(wd.prog_ql),real:sum(wd.real_ql)};
+  return{prog:sum(wd.prog_qt)+sum(wd.prog_ql),real:sum(wd.real_qt)+sum(wd.real_ql)};
+}
+
+function renderRundown(){
+  const week=K_WEEKS.find(w=>w.num===_rdWeek)||K_WEEKS[0];
+  const discs=_rdDisc?K_DISCS.filter(d=>d.name===_rdDisc):K_DISCS.filter(d=>d.qt>0||d.ql>0);
+  const tipo=_rdTipo;
+  const tipoLabel=tipo==='qt'?'Quantitativo':tipo==='ql'?'Qualitativo':'Qt + Ql';
+
+  // KPI Cards
+  let totProg=0,totReal=0,totProgAcum=0,totRealAcum=0;
+  discs.forEach(d=>{
+    const v=rdGetVal(d.name,_rdWeek,tipo); totProg+=v.prog; totReal+=v.real;
+    K_WEEKS.forEach(w=>{const av=rdGetVal(d.name,w.num,tipo);totProgAcum+=av.prog;totRealAcum+=av.real;});
+  });
+  const pctSem=pctFmt(totReal,totProg);
+  const desvio=totReal-totProg;
+  const kEl=document.getElementById('rd-kpis');
+  if(kEl) kEl.innerHTML=
+    '<div class="kpi" style="border-left-color:var(--navy)"><div class="kpi-lbl">Prog. Semana</div><div class="kpi-val" style="color:var(--navy)">'+Nf(Math.round(totProg))+'</div><div class="kpi-sub">'+tipoLabel+'</div></div>'+
+    '<div class="kpi" style="border-left-color:var(--green)"><div class="kpi-lbl">Real. Semana</div><div class="kpi-val" style="color:var(--green)">'+Nf(Math.round(totReal))+'</div><div class="kpi-sub">'+pctSem+'% do prog.</div><div class="kpi-bar"><div class="kpi-fill" style="width:'+Math.min(pctSem,100)+'%;background:var(--green)"></div></div></div>'+
+    '<div class="kpi" style="border-left-color:'+(desvio>=0?'var(--green)':'var(--red)')+'"><div class="kpi-lbl">Desvio</div><div class="kpi-val" style="color:'+(desvio>=0?'var(--green)':'var(--red)')+'">'+(desvio>=0?'+':'')+Nf(Math.round(desvio))+'</div><div class="kpi-sub">'+(desvio>=0?'adiantado':'atrasado')+'</div></div>'+
+    '<div class="kpi" style="border-left-color:var(--purple)"><div class="kpi-lbl">Acum. Geral</div><div class="kpi-val" style="color:var(--purple)">'+Nf(Math.round(totRealAcum))+'</div><div class="kpi-sub">'+pctFmt(totRealAcum,totProgAcum)+'% prog. acum.</div></div>'+
+    '<div class="kpi" style="border-left-color:var(--orange)"><div class="kpi-lbl">Semanas c/ dado</div><div class="kpi-val" style="color:var(--orange)">'+K_WEEKS.filter(w=>discs.some(d=>rdGetVal(d.name,w.num,tipo).real>0)).length+'</div><div class="kpi-sub">de '+K_WEEKS.length+' semanas</div></div>';
+
+  const infoEl=document.getElementById('rd-info');
+  if(infoEl) infoEl.textContent='S'+String(_rdWeek).padStart(3,'0')+' · '+tipoLabel+(_rdDisc?' · '+_rdDisc:'');
+
+  // Gráfico 1: Prog vs Real por Disciplina
+  const discLabels=discs.map(d=>d.name.length>14?d.name.slice(0,13)+'\u2026':d.name);
+  const discProg=discs.map(d=>Math.round(rdGetVal(d.name,_rdWeek,tipo).prog));
+  const discReal=discs.map(d=>Math.round(rdGetVal(d.name,_rdWeek,tipo).real));
+  const t1=document.getElementById('rd-chart1-title');
+  if(t1) t1.textContent='Prog. vs Real. — S'+String(_rdWeek).padStart(3,'0')+' · '+tipoLabel;
+  mkChart('rd-ch-disc',{type:'line',data:{labels:discLabels,datasets:[
+    {label:'Programado',data:discProg,borderColor:'#182554',backgroundColor:'rgba(24,37,84,.08)',fill:true,tension:.4,borderWidth:2.5,pointRadius:4,pointHoverRadius:6,spanGaps:true},
+    {label:'Realizado', data:discReal,borderColor:'#E56C35',backgroundColor:'rgba(229,108,53,.10)',fill:true,tension:.4,borderWidth:2.5,pointRadius:4,pointHoverRadius:6,pointBackgroundColor:discs.map(d=>d.color),spanGaps:true}
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:10},boxWidth:14}},tooltip:{mode:'index',intersect:false}},scales:{x:{grid:{color:'#F0F3FA'},ticks:{font:{size:8},maxRotation:45}},y:{grid:{color:'#F0F3FA'},ticks:{font:{size:9}}}}}});
+
+  // Gráfico 2: Evolução semanal
+  const semLabels=K_WEEKS.map(w=>'S'+String(w.num).padStart(3,'0'));
+  const semProg=K_WEEKS.map(w=>Math.round(discs.reduce((s,d)=>s+rdGetVal(d.name,w.num,tipo).prog,0)));
+  const semReal=K_WEEKS.map(w=>Math.round(discs.reduce((s,d)=>s+rdGetVal(d.name,w.num,tipo).real,0)));
+  const infoEl2=document.getElementById('rd-chart2-info');
+  if(infoEl2) infoEl2.textContent=_rdDisc?'\u24d8 '+_rdDisc:'\u24d8 Todas as disciplinas';
+  mkChart('rd-ch-semanas',{type:'line',plugins:[todayLine(semLabels)],data:{labels:semLabels,datasets:[
+    {label:'Programado',data:semProg,borderColor:'#182554',backgroundColor:'rgba(24,37,84,.07)',fill:true,tension:.4,borderWidth:2.5,pointRadius:4,pointHoverRadius:6,spanGaps:true},
+    {label:'Realizado', data:semReal,borderColor:'#E56C35',backgroundColor:'rgba(229,108,53,.10)',fill:true,tension:.4,borderWidth:2.5,pointRadius:4,pointHoverRadius:6,spanGaps:true}
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:10},boxWidth:14}},tooltip:{mode:'index',intersect:false,callbacks:{afterBody:ctx=>{const i=ctx[0]?.dataIndex;if(i==null)return[];const d=semReal[i]-semProg[i];return['Desvio: '+(d>=0?'+':'')+Nf(Math.round(d))];} }}},scales:{x:{grid:{color:'#F0F3FA'},ticks:{font:{size:8.5}}},y:{grid:{color:'#F0F3FA'},ticks:{font:{size:9}}}}}});
+
+  // Gráfico 3: Desvio semanal (linha com área colorida positivo/negativo)
+  const desvios=semProg.map((p,i)=>Math.round(semReal[i]-p));
+  mkChart('rd-ch-desvio',{type:'line',plugins:[todayLine(semLabels)],data:{labels:semLabels,datasets:[
+    {label:'Desvio (Real − Prog)',data:desvios,
+     borderColor:'#6366f1',backgroundColor:'rgba(99,102,241,.12)',
+     fill:true,tension:.4,borderWidth:2.5,pointRadius:5,pointHoverRadius:7,
+     pointBackgroundColor:desvios.map(v=>v>=0?'rgba(16,185,129,1)':'rgba(220,38,38,1)'),
+     pointBorderColor:desvios.map(v=>v>=0?'rgba(16,185,129,1)':'rgba(220,38,38,1)'),
+     spanGaps:true}
+  ]},options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>'Desvio: '+(ctx.raw>=0?'+':'')+Nf(ctx.raw)}}},
+    scales:{
+      x:{grid:{color:'#F0F3FA'},ticks:{font:{size:8.5}}},
+      y:{grid:{color:'#F0F3FA'},ticks:{font:{size:9},callback:v=>(v>=0?'+':'')+Nf(v)},
+         afterDataLimits:ax=>{const m=Math.max(Math.abs(ax.min),Math.abs(ax.max))||1;ax.min=-m*1.3;ax.max=m*1.3;}}
+    }}});
+
+  // Tabela detalhada
+  const titleEl=document.getElementById('rd-tbl-title');
+  const subEl=document.getElementById('rd-tbl-sub');
+  if(titleEl) titleEl.textContent='Detalhamento — S'+String(_rdWeek).padStart(3,'0')+' · '+tipoLabel;
+  if(subEl) subEl.textContent=week.days[0].slice(5).replace('-','/')+' → '+week.days[6].slice(5).replace('-','/');
+
+  const dayNames=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  const thead=document.getElementById('rd-thead');
+  const dayHdrs=week.days.map(d=>{
+    const dow=dayNames[new Date(d+'T12:00:00').getDay()];
+    const isT=d===TODAY,isFn=K_FERIADOS_NAC[d],isFl=K_FERIADOS_LOC[d],isWe=new Date(d+'T12:00:00').getDay()===0||new Date(d+'T12:00:00').getDay()===6;
+    const bg=isT?'background:var(--orange)':isFn?'background:#7f1d1d':isFl?'background:#78350f':isWe?'background:#065f46':'';
+    return '<th style="'+bg+';text-align:center;min-width:70px">'+dow+'<br><span style="font-size:9px;font-weight:400">'+d.slice(5).replace('-','/')+'</span></th>';
+  }).join('');
+  if(thead) thead.innerHTML='<tr><th class="left" style="min-width:130px">Disciplina</th><th style="text-align:center;min-width:65px">Indicador</th>'+dayHdrs+'<th style="text-align:center;min-width:65px">Total Sem.</th><th style="text-align:center;min-width:60px">% Sem.</th><th style="text-align:center;min-width:70px">Acum.</th></tr>';
+
+  const tbody=document.getElementById('rd-tbody');
+  if(!tbody) return;
+  const progKeys=tipo==='qt'?['prog_qt']:tipo==='ql'?['prog_ql']:['prog_qt','prog_ql'];
+  const realKeys=tipo==='qt'?['real_qt']:tipo==='ql'?['real_ql']:['real_qt','real_ql'];
+  const rows=[];
+  discs.forEach(d=>{
+    const wd=kState.weeks[_rdWeek]?.disc[d.name];
+    const getDay=(keys,di)=>keys.reduce((s,k)=>s+(wd?wd[k]?.[di]||0:0),0);
+    const dayP=week.days.map((_,di)=>getDay(progKeys,di));
+    const dayR=week.days.map((_,di)=>getDay(realKeys,di));
+    const sumP=dayP.reduce((a,b)=>a+b,0),sumR=dayR.reduce((a,b)=>a+b,0);
+    if(sumP===0&&sumR===0&&!_rdDisc) return;
+    const pct=pctFmt(sumR,sumP);
+    const pc=pct>=90?'var(--green)':pct>=70?'var(--yellow)':'var(--red)';
+    let acum=0; K_WEEKS.forEach(w=>{acum+=rdGetVal(d.name,w.num,tipo).real;});
+
+    const cellBg=day=>{
+      const isT=day===TODAY,isFn=K_FERIADOS_NAC[day],isFl=K_FERIADOS_LOC[day],isWe=new Date(day+'T12:00:00').getDay()===0||new Date(day+'T12:00:00').getDay()===6;
+      return isT?'#fff8f3':isWe?'#f0faf5':isFn?'#fff5f5':isFl?'#fffbeb':'';
+    };
+    const progCells=dayP.map((v,i)=>'<td style="background:'+cellBg(week.days[i])+';text-align:center;color:var(--navy);font-size:11px">'+(v||'—')+'</td>').join('');
+    const realCells=dayR.map((v,i)=>'<td style="background:'+cellBg(week.days[i])+';text-align:center;'+(v>0?'color:var(--green);font-weight:700':'color:var(--g2)')+';font-size:11px">'+(v||'—')+'</td>').join('');
+    const pctCells=dayP.map((p,i)=>{
+      const r=dayR[i],bg=cellBg(week.days[i]);
+      if(!p&&!r) return '<td style="background:'+bg+';text-align:center;color:var(--g2);font-size:10px">—</td>';
+      const dp=pctFmt(r,p),col=dp>=90?'var(--green)':dp>=70?'var(--yellow)':'var(--red)';
+      return '<td style="background:'+bg+';text-align:center;color:'+col+';font-weight:700;font-size:10px">'+(p>0?dp+'%':'—')+'</td>';
+    }).join('');
+
+    rows.push(
+      '<tr style="border-top:2px solid var(--bdr)">'+
+        '<td rowspan="3" style="border-left:3px solid '+d.color+';padding-left:10px;vertical-align:middle"><strong style="color:var(--navy)">'+d.name+'</strong></td>'+
+        '<td style="font-size:10px;color:var(--navy);text-align:center;background:#f7f9fc;font-weight:700;white-space:nowrap">PROG</td>'+
+        progCells+
+        '<td style="text-align:center;color:var(--navy);font-weight:700">'+Nf(Math.round(sumP))+'</td>'+
+        '<td rowspan="3" style="text-align:center;vertical-align:middle"><div style="font-size:14px;font-weight:900;color:'+pc+'">'+(sumP>0?pct+'%':'—')+'</div><div style="font-size:9px;color:var(--g2);margin-top:2px">'+(sumP>0?sumR>=sumP?'✅ Ok':'⚠ Desvio':'sem prog.')+'</div></td>'+
+        '<td rowspan="3" style="text-align:center;vertical-align:middle;font-weight:700;color:var(--purple)">'+Nf(Math.round(acum))+'</td>'+
+      '</tr>'+
+      '<tr>'+
+        '<td style="font-size:10px;color:var(--green);text-align:center;background:#f7f9fc;font-weight:700;white-space:nowrap">REAL</td>'+
+        realCells+
+        '<td style="text-align:center;color:var(--green);font-weight:700">'+Nf(Math.round(sumR))+'</td>'+
+      '</tr>'+
+      '<tr>'+
+        '<td style="font-size:10px;color:var(--g2);text-align:center;background:var(--bg);font-weight:700;white-space:nowrap">% dia</td>'+
+        pctCells+
+        '<td style="text-align:center;color:'+pc+';font-weight:700">'+(sumP>0?pct+'%':'—')+'</td>'+
+      '</tr>'
+    );
+  });
+  tbody.innerHTML=rows.length?rows.join(''):'<tr><td colspan="12" style="text-align:center;padding:30px;color:var(--g2);font-size:12px">Nenhum dado para os filtros selecionados</td></tr>';
 }
 
 // ══════════════════════════════════════════════════════════
