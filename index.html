@@ -102,6 +102,9 @@ tr:hover td{background:#eef3ff!important}
 .rest-card.aberta{border-left-color:var(--red)}
 .rest-card.andamento{border-left-color:var(--yellow)}
 .rest-card.concluida{border-left-color:var(--green);opacity:.75}
+.rest-card.vencido{border-left-color:#7C2D12;background:linear-gradient(135deg,#FFF5F5 0%,#FEF0EC 100%);box-shadow:0 0 0 1.5px #DC2626,var(--sh)}
+.rest-card.vencido .rest-disc{background:#FEE2E2;color:#991B1B}
+@keyframes pulse-border{0%,100%{box-shadow:0 0 0 1.5px #DC2626,var(--sh)}50%{box-shadow:0 0 0 3px #DC262660,var(--sh)}}
 .rest-disc{font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;background:#dde9ff;color:var(--navy);display:inline-block;margin-bottom:6px}
 .rest-text{font-size:11.5px;font-weight:600;color:var(--dk);line-height:1.5;margin-bottom:6px;white-space:pre-wrap}
 .rest-meta{font-size:9.5px;color:var(--g2);display:flex;gap:10px;align-items:center;flex-wrap:wrap}
@@ -564,7 +567,7 @@ function buildDashboard(){
       </table>
     </div>
   </div>
-  <div class="footer">Criado por Anderson Souza · <a href="https://wa.me/5521996413839">📱 (21) 99641-3839</a> · <a href="mailto:andersonjhonathan@gmail.com">andersonjhonathan@gmail.com</a> · Rev. 5.0 · ${new Date().toLocaleDateString('pt-BR')}</div>
+  <div class="footer">Criado por Anderson Souza · <a href="https://wa.me/5521996413839">📱 (21) 99641-3839</a> · <a href="mailto:andersonjhonathan@gmail.com">andersonjhonathan@gmail.com</a> · Rev. 5.1 · ${new Date().toLocaleDateString('pt-BR')}</div>
   `;
 
   // Marco days
@@ -656,7 +659,7 @@ function buildCurvas(){
     <div class="card"><div class="card-hdr"><div class="card-title" id="curva-title1">Curva S Acumulada</div><div class="card-info">ⓘ Programado vs Realizado acumulado</div></div><div class="cw h300"><canvas id="ch-curva-s"></canvas></div></div>
     <div class="card"><div class="card-hdr"><div class="card-title" id="curva-title2">Realizado por Semana</div><div class="card-info">ⓘ Barras semanais</div></div><div class="cw h300"><canvas id="ch-curva-bar"></canvas></div></div>
   </div>
-  <div class="footer">Criado por Anderson Souza · Rev. 5.0</div>`;
+  <div class="footer">Criado por Anderson Souza · Rev. 5.1</div>`;
 
   buildCurvaDiscTabs();
   renderCurva();
@@ -838,7 +841,7 @@ function buildWla6(){
     <div class="card-hdr"><div class="card-title">📊 Programado vs Realizado — Próximas 6 Semanas</div></div>
     <div class="cw h260"><canvas id="ch-wla-bar"></canvas></div>
   </div>
-  <div class="footer">Criado por Anderson Souza · Rev. 5.0</div>`;
+  <div class="footer">Criado por Anderson Souza · Rev. 5.1</div>`;
 
   // Bar chart for 6wla
   const wlabels=wsToShow.map(w=>'S'+String(w.num).padStart(3,'0'));
@@ -860,6 +863,40 @@ function buildWla6(){
 // VIEW: RESTRIÇÕES (vem das pends do kpi_state)
 // ══════════════════════════════════════════════════════════
 let _restFilt='';
+
+function _parsePrazo(prazo){
+  if(!prazo) return null;
+  let y,m,d;
+  if(prazo.includes('/')){
+    // DD/MM/YYYY
+    const p=prazo.split('/');
+    d=parseInt(p[0],10); m=parseInt(p[1],10)-1; y=parseInt(p[2],10);
+  } else if(prazo.includes('-')){
+    // YYYY-MM-DD
+    const p=prazo.split('-');
+    y=parseInt(p[0],10); m=parseInt(p[1],10)-1; d=parseInt(p[2],10);
+  } else return null;
+  if(isNaN(y)||isNaN(m)||isNaN(d)) return null;
+  // Usar construtor local (sem UTC) para evitar off-by-one de fuso horário
+  return new Date(y,m,d,0,0,0,0);
+}
+
+function _isVencido(p){
+  if(!p.prazo||p.status==='concluida') return false;
+  const dt=_parsePrazo(p.prazo);
+  if(!dt||isNaN(dt.getTime())) return false;
+  const today=new Date(); today.setHours(0,0,0,0);
+  return dt.getTime() < today.getTime();
+}
+
+function _diasAtraso(p){
+  if(!p.prazo) return 0;
+  const dt=_parsePrazo(p.prazo);
+  if(!dt||isNaN(dt.getTime())) return 0;
+  const today=new Date(); today.setHours(0,0,0,0);
+  return Math.max(0,Math.round((today.getTime()-dt.getTime())/(1000*60*60*24)));
+}
+
 function buildRestricoes(){
   const c=document.getElementById('view-restricoes'); if(!c) return;
   c.innerHTML=`
@@ -871,6 +908,7 @@ function buildRestricoes(){
         <option value="aberta">🔴 Aberta</option>
         <option value="andamento">🟡 Em andamento</option>
         <option value="concluida">🟢 Concluída</option>
+        <option value="vencido">🔥 Vencidas</option>
       </select>
       <select class="fsel" id="rest-filt-disc" onchange="renderRestricoes()">
         <option value="">Todas disciplinas</option>
@@ -885,157 +923,28 @@ function buildRestricoes(){
       </div>
       <span id="rest-count" style="font-size:10.5px;color:var(--g2)"></span>
       <button onclick="exportRestricoesPDF()" title="Exportar PDF"
-        style="display:flex;align-items:center;gap:6px;background:#C8102E;color:#fff;border:none;border-radius:7px;padding:5px 14px;font-size:10.5px;font-weight:700;cursor:pointer;white-space:nowrap;box-shadow:0 2px 8px rgba(200,16,46,.3);transition:.15s"
+        style="display:flex;align-items:center;gap:6px;background:#C8102E;color:#fff;border:none;border-radius:7px;padding:5px 14px;font-size:10.5px;font-weight:700;cursor:pointer;white-space:nowrap;box-shadow:0 2px 8px rgba(200,16,46,.3)"
         onmouseover="this.style.background='#a50d26'" onmouseout="this.style.background='#C8102E'">
         📄 Exportar PDF
       </button>
     </div>
   </div>
   <div class="kpi-row" id="rest-kpis"></div>
+  <div id="rest-vencido-banner" style="display:none"></div>
   <div class="rest-grid" id="rest-grid"></div>
-  <div class="footer">Criado por Anderson Souza · Rev. 5.0</div>`;
+  <div class="footer">Criado por Anderson Souza · Rev. 5.1</div>`;
   renderRestricoes();
 }
 
-function exportRestricoesPDF(){
-  // Captura filtros ativos
-  const filtStatus=document.getElementById('rest-filt-status')?.value||'';
-  const filtDisc=document.getElementById('rest-filt-disc')?.value||'';
-  const filtTexto=(document.getElementById('rest-filt-texto')?.value||'').trim().toLowerCase();
-  let pends=(kState.pends||[]);
-  if(filtStatus) pends=pends.filter(p=>p.status===filtStatus);
-  if(filtDisc)   pends=pends.filter(p=>p.disc===filtDisc);
-  if(filtTexto)  pends=pends.filter(p=>
-    (p.text||'').toLowerCase().includes(filtTexto)||
-    (p.disc||'').toLowerCase().includes(filtTexto)||
-    (p.resp||'').toLowerCase().includes(filtTexto)||
-    (p.prazo||'').toLowerCase().includes(filtTexto)
-  );
-
-  const statusColors={aberta:'#C8102E',andamento:'#D97706',concluida:'#059669'};
-  const statusBgs   ={aberta:'#FEE2E2',andamento:'#FEF3C7',concluida:'#D1FAE5'};
-  const statusLabels={aberta:'🔴 Aberta',andamento:'🟡 Em andamento',concluida:'🟢 Concluída'};
-  const aberta  =(kState.pends||[]).filter(p=>p.status==='aberta').length;
-  const andamento=(kState.pends||[]).filter(p=>p.status==='andamento').length;
-  const concluida=(kState.pends||[]).filter(p=>p.status==='concluida').length;
-  const now=new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'});
-  const semana='S'+String(CW).padStart(3,'0');
-
-  const filtroDesc=[
-    filtStatus?statusLabels[filtStatus]:'Todos os status',
-    filtDisc||'Todas as disciplinas',
-    filtTexto?`"${filtTexto}"`:'',
-  ].filter(Boolean).join(' · ');
-
-  const rows=pends.map((p,i)=>{
-    const sc=statusColors[p.status]||'#666';
-    const sb=statusBgs[p.status]||'#f5f5f5';
-    const sl=statusLabels[p.status]||p.status||'—';
-    return `
-    <tr style="page-break-inside:avoid">
-      <td style="width:28px;text-align:center;font-size:11px;color:#6B7280;font-weight:600;padding:10px 6px;border-bottom:1px solid #E5E7EB">${i+1}</td>
-      <td style="padding:10px 8px;border-bottom:1px solid #E5E7EB">
-        <div style="display:flex;align-items:flex-start;gap:8px">
-          <div style="flex:1">
-            <div style="display:flex;gap:6px;align-items:center;margin-bottom:5px;flex-wrap:wrap">
-              <span style="background:#DBEAFE;color:#1E40AF;font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px">${p.disc||'Geral'}</span>
-              <span style="background:${sb};color:${sc};font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;border:1px solid ${sc}33">${sl}</span>
-              ${p.prazo?`<span style="background:#F3F4F6;color:#374151;font-size:10px;padding:2px 7px;border-radius:4px">⏰ Prazo: ${p.prazo}</span>`:''}
-              ${p.resp?`<span style="background:#F3F4F6;color:#374151;font-size:10px;padding:2px 7px;border-radius:4px">👤 ${p.resp}</span>`:''}
-            </div>
-            <div style="font-size:12px;color:#111827;line-height:1.6;white-space:pre-wrap">${(p.text||'').trim()||'<em style="color:#9CA3AF">Sem descrição</em>'}</div>
-            ${p.date?`<div style="font-size:10px;color:#9CA3AF;margin-top:4px">Criado em: ${p.date}</div>`:''}
-          </div>
-        </div>
-      </td>
-    </tr>`;
-  }).join('');
-
-  const html=`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
-  <title>Restrições & Pendências — GASLUB EPC05</title>
-  <style>
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:'Segoe UI',Arial,sans-serif;background:#fff;color:#111827;font-size:12px}
-    @page{size:A4;margin:15mm 12mm 15mm 12mm}
-    @media print{.no-print{display:none!important}}
-    .header{background:linear-gradient(135deg,#182554 0%,#1e3a8a 60%,#00617F 100%);color:#fff;padding:16px 20px;border-radius:8px;margin-bottom:16px}
-    .header h1{font-size:17px;font-weight:800;margin-bottom:3px}
-    .header p{font-size:10px;opacity:.75;margin-bottom:8px}
-    .header-meta{display:flex;gap:12px;flex-wrap:wrap}
-    .meta-chip{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);border-radius:12px;padding:3px 10px;font-size:10px;font-weight:600}
-    .summary{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap}
-    .sum-card{flex:1;min-width:100px;border-radius:7px;padding:10px 12px;border-left:4px solid}
-    .sum-card .val{font-size:22px;font-weight:900;line-height:1}
-    .sum-card .lbl{font-size:9px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;font-weight:700}
-    table{width:100%;border-collapse:collapse}
-    thead tr{background:#182554}
-    thead th{color:#fff;font-size:10px;font-weight:700;padding:8px 10px;text-align:left;text-transform:uppercase;letter-spacing:.4px}
-    tbody tr:nth-child(even) td{background:#F9FAFB}
-    .footer-bar{margin-top:16px;padding:10px 14px;background:#F3F4F6;border-radius:6px;display:flex;justify-content:space-between;font-size:9.5px;color:#6B7280}
-    .no-data{text-align:center;padding:40px;color:#9CA3AF;font-size:12px}
-  </style></head><body>
-
-  <div class="header">
-    <h1>🚨 Restrições & Pendências</h1>
-    <p>COMPLEXO BOA VENTURA · SE-4700 / U-4710 / U-4730 · Itaboraí · HDT GASLUB · GASLUB EPC05</p>
-    <div class="header-meta">
-      <span class="meta-chip">📅 ${now}</span>
-      <span class="meta-chip">${semana}</span>
-      <span class="meta-chip">${pends.length} de ${(kState.pends||[]).length} pendência(s)</span>
-      <span class="meta-chip">Filtro: ${filtroDesc}</span>
-    </div>
-  </div>
-
-  <div class="summary">
-    <div class="sum-card" style="border-color:#C8102E;background:#FEF2F2">
-      <div class="lbl" style="color:#C8102E">Abertas</div>
-      <div class="val" style="color:#C8102E">${aberta}</div>
-    </div>
-    <div class="sum-card" style="border-color:#D97706;background:#FFFBEB">
-      <div class="lbl" style="color:#D97706">Em andamento</div>
-      <div class="val" style="color:#D97706">${andamento}</div>
-    </div>
-    <div class="sum-card" style="border-color:#059669;background:#ECFDF5">
-      <div class="lbl" style="color:#059669">Concluídas</div>
-      <div class="val" style="color:#059669">${concluida}</div>
-    </div>
-    <div class="sum-card" style="border-color:#182554;background:#EFF6FF">
-      <div class="lbl" style="color:#182554">Total geral</div>
-      <div class="val" style="color:#182554">${(kState.pends||[]).length}</div>
-    </div>
-  </div>
-
-  <table>
-    <thead><tr><th style="width:32px">#</th><th>Descrição</th></tr></thead>
-    <tbody>${rows||'<tr><td colspan="2" class="no-data">Nenhuma pendência encontrada</td></tr>'}</tbody>
-  </table>
-
-  <div class="footer-bar">
-    <span>Relatório gerado em ${now} · ${new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</span>
-    <span>Anderson Souza · (21) 99641-3839 · andersonjhonathan@gmail.com</span>
-  </div>
-
-  <script>window.onload=()=>{ window.print(); }<\/script>
-  </body></html>`;
-
-  const blob=new Blob([html],{type:'text/html;charset=utf-8'});
-  const url=URL.createObjectURL(blob);
-  const win=window.open(url,'_blank','width=900,height=700');
-  if(!win) alert('Permita popups para exportar o PDF.');
-  setTimeout(()=>URL.revokeObjectURL(url),60000);
-}
-function _highlight(text, term) {
-  if (!term) return text;
-  const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return text.replace(new RegExp('(' + escaped + ')', 'gi'),
-    '<mark style="background:#FFF176;color:#333;border-radius:2px;padding:0 1px">$1</mark>');
-}
 function renderRestricoes(){
   const filtStatus=document.getElementById('rest-filt-status')?.value||'';
   const filtDisc=document.getElementById('rest-filt-disc')?.value||'';
   const filtTexto=(document.getElementById('rest-filt-texto')?.value||'').trim().toLowerCase();
+
   let pends=(kState.pends||[]);
-  if(filtStatus) pends=pends.filter(p=>p.status===filtStatus);
+  // Filtro vencido é especial
+  if(filtStatus==='vencido') pends=pends.filter(p=>_isVencido(p));
+  else if(filtStatus) pends=pends.filter(p=>p.status===filtStatus);
   if(filtDisc) pends=pends.filter(p=>p.disc===filtDisc);
   if(filtTexto) pends=pends.filter(p=>
     (p.text||'').toLowerCase().includes(filtTexto)||
@@ -1047,38 +956,205 @@ function renderRestricoes(){
   const el=document.getElementById('rest-count');
   if(el) el.textContent=`${pends.length} de ${(kState.pends||[]).length} pendência(s)`;
 
-  const kEl=document.getElementById('rest-kpis');
-  const aberta=(kState.pends||[]).filter(p=>p.status==='aberta').length;
-  const andamento=(kState.pends||[]).filter(p=>p.status==='andamento').length;
-  const concluida=(kState.pends||[]).filter(p=>p.status==='concluida').length;
-  if(kEl) kEl.innerHTML=`
-    <div class="kpi" style="border-left-color:var(--red)"><div class="kpi-lbl">Abertas</div><div class="kpi-val" style="color:var(--red)">${aberta}</div></div>
-    <div class="kpi" style="border-left-color:var(--yellow)"><div class="kpi-lbl">Em andamento</div><div class="kpi-val" style="color:var(--yellow)">${andamento}</div></div>
-    <div class="kpi" style="border-left-color:var(--green)"><div class="kpi-lbl">Concluídas</div><div class="kpi-val" style="color:var(--green)">${concluida}</div></div>
-    <div class="kpi" style="border-left-color:var(--navy)"><div class="kpi-lbl">Total</div><div class="kpi-val" style="color:var(--navy)">${(kState.pends||[]).length}</div></div>`;
+  // Contagens
+  const allPends=kState.pends||[];
+  const nAberta  =allPends.filter(p=>p.status==='aberta').length;
+  const nAndamento=allPends.filter(p=>p.status==='andamento').length;
+  const nConcluida=allPends.filter(p=>p.status==='concluida').length;
+  const nVencido  =allPends.filter(p=>_isVencido(p)).length;
 
+  // KPI cards — com card de vencidas em destaque
+  const kEl=document.getElementById('rest-kpis');
+  if(kEl) kEl.innerHTML=
+    `<div class="kpi" style="border-left-color:var(--red)"><div class="kpi-lbl">Abertas</div><div class="kpi-val" style="color:var(--red)">${nAberta}</div></div>`+
+    `<div class="kpi" style="border-left-color:var(--yellow)"><div class="kpi-lbl">Em andamento</div><div class="kpi-val" style="color:var(--yellow)">${nAndamento}</div></div>`+
+    `<div class="kpi" style="border-left-color:var(--green)"><div class="kpi-lbl">Concluídas</div><div class="kpi-val" style="color:var(--green)">${nConcluida}</div></div>`+
+    `<div class="kpi" style="border-left-color:var(--navy)"><div class="kpi-lbl">Total</div><div class="kpi-val" style="color:var(--navy)">${allPends.length}</div></div>`+
+    (nVencido>0?
+      `<div class="kpi" style="border-left-color:#DC2626;background:linear-gradient(135deg,#FFF5F5,#FEF0EC);cursor:pointer;animation:pulse-border 2s infinite"
+        onclick="document.getElementById('rest-filt-status').value='vencido';renderRestricoes()" title="Clique para filtrar vencidas">
+        <div class="kpi-lbl" style="color:#991B1B">🔥 Vencidas</div>
+        <div class="kpi-val" style="color:#DC2626">${nVencido}</div>
+        <div class="kpi-sub" style="color:#991B1B;font-weight:600">clique p/ filtrar</div>
+      </div>`:
+      `<div class="kpi" style="border-left-color:#059669;background:#F0FDF4"><div class="kpi-lbl" style="color:#059669">✅ Sem vencidas</div><div class="kpi-val" style="color:#059669">0</div></div>`
+    );
+
+  // Banner de alerta se há vencidas e não está filtrando por vencido
+  const banner=document.getElementById('rest-vencido-banner');
+  if(banner){
+    if(nVencido>0&&filtStatus!=='vencido'){
+      banner.style.display='block';
+      banner.innerHTML=`<div style="background:#FEF2F2;border:1.5px solid #FCA5A5;border-left:5px solid #DC2626;border-radius:8px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span style="font-size:18px">🔥</span>
+        <div style="flex:1">
+          <div style="font-size:12px;font-weight:800;color:#991B1B">${nVencido} restrição(ões) com prazo vencido!</div>
+          <div style="font-size:10.5px;color:#B91C1C;margin-top:2px">Pendências não concluídas cujo prazo já passou. Ação imediata necessária.</div>
+        </div>
+        <button onclick="document.getElementById('rest-filt-status').value='vencido';renderRestricoes()"
+          style="background:#DC2626;color:#fff;border:none;border-radius:6px;padding:5px 14px;font-size:10.5px;font-weight:700;cursor:pointer;white-space:nowrap">
+          Ver vencidas →
+        </button>
+      </div>`;
+    } else {
+      banner.style.display='none';
+    }
+  }
+
+  // Render cards
   const statusColors={aberta:'var(--red)',andamento:'var(--yellow)',concluida:'var(--green)'};
   const statusLabels={aberta:'🔴 Aberta',andamento:'🟡 Em andamento',concluida:'🟢 Concluída'};
   const term=document.getElementById('rest-filt-texto')?.value||'';
 
   const grid=document.getElementById('rest-grid');
-  if(grid) grid.innerHTML=pends.length===0
-    ?`<div style="padding:40px;text-align:center;color:var(--g2);font-size:12px">${filtTexto?'Nenhuma pendência encontrada para "'+filtTexto+'"':'Nenhuma pendência encontrada'}</div>`
-    :pends.map(p=>`
-      <div class="rest-card ${p.status||'aberta'}">
+  if(!grid) return;
+
+  const semPrazo=(kState.pends||[]).filter(p=>p.prazo&&p.status!=='concluida').length;
+
+  if(pends.length===0){
+    const msg = filtStatus==='vencido'
+      ? semPrazo===0
+        ? `<div style="padding:30px;text-align:center">
+            <div style="font-size:32px;margin-bottom:10px">📅</div>
+            <div style="font-weight:800;color:var(--navy);margin-bottom:6px">Nenhuma pendência tem prazo definido</div>
+            <div style="font-size:11px;color:var(--g2);max-width:380px;margin:0 auto;line-height:1.6">
+              Para usar o filtro de vencidas, vá até <strong>KPI Semanal → Restrições & Pendências</strong>
+              e preencha o campo <strong>Prazo</strong> em cada pendência.
+            </div>
+           </div>`
+        : `<div style="padding:30px;text-align:center">
+            <div style="font-size:32px;margin-bottom:10px">✅</div>
+            <div style="font-weight:800;color:var(--green);margin-bottom:6px">Nenhuma restrição vencida!</div>
+            <div style="font-size:11px;color:var(--g2)">Todas as ${semPrazo} pendência(s) com prazo ainda estão dentro do prazo.</div>
+           </div>`
+      : filtTexto
+        ? `<div style="padding:40px;text-align:center;color:var(--g2);font-size:12px">Nenhuma pendência encontrada para "${filtTexto}"</div>`
+        : `<div style="padding:40px;text-align:center;color:var(--g2);font-size:12px">Nenhuma pendência encontrada</div>`;
+    grid.innerHTML=msg;
+    return;
+  }
+
+  // Ordenar: vencidas primeiro, depois abertas, andamento, concluídas
+  const sorted=[...pends].sort((a,b)=>{
+    const av=_isVencido(a)?0:a.status==='aberta'?1:a.status==='andamento'?2:3;
+    const bv=_isVencido(b)?0:b.status==='aberta'?1:b.status==='andamento'?2:3;
+    if(av!==bv) return av-bv;
+    // Dentro de vencidas: mais atrasado primeiro
+    return _diasAtraso(b)-_diasAtraso(a);
+  });
+
+  grid.innerHTML=sorted.map(p=>{
+    const vencido=_isVencido(p);
+    const atraso=_diasAtraso(p);
+    const cardCls=vencido?'vencido':(p.status||'aberta');
+    const sc=vencido?'#DC2626':(statusColors[p.status]||'var(--grey)');
+    const sl=vencido?`🔥 VENCIDA`:(statusLabels[p.status]||p.status);
+    const slBg=vencido?'#FEE2E2':(statusColors[p.status]||'var(--grey)')+'22';
+
+    return `<div class="rest-card ${cardCls}" style="${vencido?'animation:pulse-border 2s infinite':''}" >
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap">
         <span class="rest-disc">${_highlight(p.disc||'Geral',term)}</span>
-        <span class="badge" style="background:${statusColors[p.status]||'var(--grey)'}22;color:${statusColors[p.status]||'var(--grey)'};margin-left:6px">${statusLabels[p.status]||p.status}</span>
-        <div class="rest-text">${_highlight((p.text||'').trim(),term)}</div>
-        <div class="rest-meta">
-          ${p.date?`<span>📅 ${p.date}</span>`:''}
-          ${p.resp?`<span>👤 ${_highlight(p.resp,term)}</span>`:''}
-          ${p.prazo?`<span>⏰ ${p.prazo}</span>`:''}
-        </div>
-      </div>`).join('');
+        <span class="badge" style="background:${slBg};color:${sc};border:1px solid ${sc}44;font-weight:800">${sl}</span>
+        ${vencido?`<span style="background:#7C2D12;color:#FED7AA;font-size:9px;font-weight:800;padding:2px 7px;border-radius:4px;margin-left:auto">⏰ ${atraso}d atrasada</span>`:''}
+      </div>
+      <div class="rest-text">${_highlight((p.text||'').trim(),term)}</div>
+      <div class="rest-meta" style="${vencido?'color:#991B1B':''}" >
+        ${p.date?`<span>📅 ${p.date}</span>`:''}
+        ${p.resp?`<span>👤 ${_highlight(p.resp,term)}</span>`:''}
+        ${p.prazo?`<span style="font-weight:700;color:${vencido?'#DC2626':'inherit'}">⏰ Prazo: ${p.prazo}${vencido?` (+${atraso}d)`:''}</span>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+function _highlight(text, term) {
+  if (!term) return text;
+  const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return text.replace(new RegExp('(' + escaped + ')', 'gi'),
+    '<mark style="background:#FFF176;color:#333;border-radius:2px;padding:0 1px">$1</mark>');
+}
+function exportRestricoesPDF(){
+  const filtStatus=document.getElementById('rest-filt-status')?.value||'';
+  const filtDisc=document.getElementById('rest-filt-disc')?.value||'';
+  const filtTexto=(document.getElementById('rest-filt-texto')?.value||'').trim().toLowerCase();
+  let pends=(kState.pends||[]);
+  if(filtStatus==='vencido') pends=pends.filter(p=>_isVencido(p));
+  else if(filtStatus) pends=pends.filter(p=>p.status===filtStatus);
+  if(filtDisc) pends=pends.filter(p=>p.disc===filtDisc);
+  if(filtTexto) pends=pends.filter(p=>
+    (p.text||'').toLowerCase().includes(filtTexto)||
+    (p.disc||'').toLowerCase().includes(filtTexto)||
+    (p.resp||'').toLowerCase().includes(filtTexto)||
+    (p.prazo||'').toLowerCase().includes(filtTexto)
+  );
+  const statusColors={aberta:'#C8102E',andamento:'#D97706',concluida:'#059669'};
+  const statusBgs   ={aberta:'#FEE2E2',andamento:'#FEF3C7',concluida:'#D1FAE5'};
+  const statusLabels={aberta:'Aberta',andamento:'Em andamento',concluida:'Conclu\xEDda'};
+  const aberta  =(kState.pends||[]).filter(p=>p.status==='aberta').length;
+  const andamento=(kState.pends||[]).filter(p=>p.status==='andamento').length;
+  const concluida=(kState.pends||[]).filter(p=>p.status==='concluida').length;
+  const vencidas=(kState.pends||[]).filter(p=>_isVencido(p)).length;
+  const now=new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'});
+  const semana='S'+String(CW).padStart(3,'0');
+  const sorted=[...pends].sort((a,b)=>{
+    const av=_isVencido(a)?0:a.status==='aberta'?1:a.status==='andamento'?2:3;
+    const bv=_isVencido(b)?0:b.status==='aberta'?1:b.status==='andamento'?2:3;
+    return av-bv||_diasAtraso(b)-_diasAtraso(a);
+  });
+  const rows=sorted.map((p,i)=>{
+    const vencido=_isVencido(p); const atraso=_diasAtraso(p);
+    const sc=vencido?'#DC2626':(statusColors[p.status]||'#666');
+    const sb=vencido?'#FEE2E2':(statusBgs[p.status]||'#f5f5f5');
+    const sl=vencido?'VENCIDA':(statusLabels[p.status]||p.status||'\u2014');
+    return '<tr style="page-break-inside:avoid;'+(vencido?'background:#FFF5F5':'')+'">'
+      +'<td style="width:28px;text-align:center;font-size:11px;color:#6B7280;padding:10px 6px;border-bottom:1px solid #E5E7EB">'+(i+1)+'</td>'
+      +'<td style="padding:10px 8px;border-bottom:1px solid #E5E7EB;'+(vencido?'border-left:3px solid #DC2626':'')+'">'
+      +'<div style="display:flex;gap:6px;margin-bottom:5px;flex-wrap:wrap">'
+      +'<span style="background:#DBEAFE;color:#1E40AF;font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px">'+(p.disc||'Geral')+'</span>'
+      +'<span style="background:'+sb+';color:'+sc+';font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px">'+sl+'</span>'
+      +(vencido?'<span style="background:#7C2D12;color:#FED7AA;font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px">'+atraso+'d atrasada</span>':'')
+      +(p.prazo?'<span style="background:#F3F4F6;color:'+(vencido?'#DC2626':'#374151')+';font-size:10px;padding:2px 7px;border-radius:4px">Prazo: '+p.prazo+'</span>':'')
+      +(p.resp?'<span style="background:#F3F4F6;color:#374151;font-size:10px;padding:2px 7px;border-radius:4px">'+p.resp+'</span>':'')
+      +'</div>'
+      +'<div style="font-size:12px;color:#111827;line-height:1.6;white-space:pre-wrap">'+(p.text||'').trim()+'</div>'
+      +(p.date?'<div style="font-size:10px;color:#9CA3AF;margin-top:4px">Criado: '+p.date+'</div>':'')
+      +'</td></tr>';
+  }).join('');
+  const html='<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Restri\u00E7\u00F5es</title>'
+    +'<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Segoe UI,Arial,sans-serif;font-size:12px}'
+    +'@page{size:A4;margin:15mm 12mm}.header{background:linear-gradient(135deg,#182554,#00617F);color:#fff;padding:16px 20px;border-radius:8px;margin-bottom:16px}'
+    +'.header h1{font-size:17px;font-weight:800;margin-bottom:3px}.header p{font-size:10px;opacity:.75;margin-bottom:8px}'
+    +'.meta-chip{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);border-radius:12px;padding:3px 10px;font-size:10px;font-weight:600;margin-right:6px}'
+    +'.summary{display:flex;gap:10px;margin-bottom:16px}'
+    +'.sc{flex:1;border-radius:7px;padding:10px 12px;border-left:4px solid}'
+    +'table{width:100%;border-collapse:collapse}thead tr{background:#182554}thead th{color:#fff;font-size:10px;font-weight:700;padding:8px 10px;text-align:left}'
+    +'tbody tr:nth-child(even) td{background:#F9FAFB}'
+    +'.fb{margin-top:16px;padding:10px 14px;background:#F3F4F6;border-radius:6px;display:flex;justify-content:space-between;font-size:9.5px;color:#6B7280}'
+    +'</style></head><body>'
+    +'<div class="header"><h1>Restri\u00E7\u00F5es & Pend\u00EAncias</h1>'
+    +'<p>COMPLEXO BOA VENTURA \u00B7 GASLUB EPC05</p>'
+    +'<div><span class="meta-chip">'+now+'</span><span class="meta-chip">'+semana+'</span>'
+    +'<span class="meta-chip">'+pends.length+' de '+(kState.pends||[]).length+' pend\u00EAncia(s)</span>'
+    +(vencidas>0?'<span class="meta-chip" style="background:#DC2626">'+vencidas+' vencida(s)</span>':'')
+    +'</div></div>'
+    +'<div class="summary">'
+    +'<div class="sc" style="border-color:#C8102E;background:#FEF2F2"><div style="font-size:9px;text-transform:uppercase;color:#C8102E;font-weight:700">Abertas</div><div style="font-size:22px;font-weight:900;color:#C8102E">'+aberta+'</div></div>'
+    +'<div class="sc" style="border-color:#D97706;background:#FFFBEB"><div style="font-size:9px;text-transform:uppercase;color:#D97706;font-weight:700">Em andamento</div><div style="font-size:22px;font-weight:900;color:#D97706">'+andamento+'</div></div>'
+    +'<div class="sc" style="border-color:#059669;background:#ECFDF5"><div style="font-size:9px;text-transform:uppercase;color:#059669;font-weight:700">Conclu\xEDdas</div><div style="font-size:22px;font-weight:900;color:#059669">'+concluida+'</div></div>'
+    +'<div class="sc" style="border-color:#182554;background:#EFF6FF"><div style="font-size:9px;text-transform:uppercase;color:#182554;font-weight:700">Total</div><div style="font-size:22px;font-weight:900;color:#182554">'+(kState.pends||[]).length+'</div></div>'
+    +(vencidas>0?'<div class="sc" style="border-color:#DC2626;background:#FFF5F5"><div style="font-size:9px;text-transform:uppercase;color:#DC2626;font-weight:700">Vencidas</div><div style="font-size:22px;font-weight:900;color:#DC2626">'+vencidas+'</div></div>':'')
+    +'</div>'
+    +'<table><thead><tr><th style="width:32px">#</th><th>Descri\u00E7\u00E3o</th></tr></thead><tbody>'
+    +rows+'</tbody></table>'
+    +'<div class="fb"><span>Gerado em '+now+'</span><span>Anderson Souza \u00B7 (21) 99641-3839</span></div>'
+    +'<script>window.onload=()=>{window.print();}<\/script>'
+    +'</body></html>';
+  const blob=new Blob([html],{type:'text/html;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const win=window.open(url,'_blank','width=900,height=700');
+  if(!win) alert('Permita popups para exportar o PDF.');
+  setTimeout(()=>URL.revokeObjectURL(url),60000);
 }
 
-// ══════════════════════════════════════════════════════════
-// VIEW: RUNDOWN
 // ══════════════════════════════════════════════════════════
 let _rdWeek=null, _rdDisc='', _rdTipo='todos';
 
@@ -1132,7 +1208,7 @@ function buildRundown(){
     <div class="tbar"><h3 id="rd-tbl-title">Detalhamento por Disciplina</h3><div style="font-size:10px;color:var(--g2)" id="rd-tbl-sub"></div></div>
     <div class="twrap"><table><thead id="rd-thead"></thead><tbody id="rd-tbody"></tbody></table></div>
   </div>
-  <div class="footer">Criado por Anderson Souza · Rev. 5.0</div>`;
+  <div class="footer">Criado por Anderson Souza · Rev. 5.1</div>`;
 
   renderRundown();
 }
@@ -1405,7 +1481,7 @@ function buildKpiView(){
       <div class="kv-sig-right">
         <span class="kv-sig-tag blue">HC² Consórcio</span>
         <div class="kv-sig-div"></div><span class="kv-sig-tag">GASLUB EPC05</span>
-        <div class="kv-sig-div"></div><span class="kv-sig-tag teal">Rev. 5.0</span>
+        <div class="kv-sig-div"></div><span class="kv-sig-tag teal">Rev. 5.1</span>
         <div class="kv-sig-div"></div><span class="kv-sig-tag">abr/2026</span>
       </div>
     </div>
