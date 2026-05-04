@@ -187,6 +187,11 @@ tr:hover td{background:#eef3ff!important}
 #kpi-view-wrap .kv-table tr:hover td{background:#f0f4ff!important}
 #kpi-view-wrap .kv-disc-cell{background:var(--kv-surface2);padding:10px;border-right:2px solid var(--kv-border2);vertical-align:top}
 #kpi-view-wrap .kv-disc-name{font-weight:800;color:var(--navy);font-size:12px}
+#kpi-view-wrap .kv-disc-resp{margin-top:4px;display:flex;flex-direction:column;gap:2px}
+#kpi-view-wrap .kv-disc-resp-row{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--g2);line-height:1.3}
+#kpi-view-wrap .kv-resp-tag{font-size:9px;font-weight:800;color:#fff;padding:1px 4px;border-radius:3px;text-transform:uppercase;letter-spacing:.3px;flex-shrink:0}
+#kpi-view-wrap .kv-resp-tag.hc2{background:var(--navy)}
+#kpi-view-wrap .kv-resp-tag.pb{background:#6b7280}
 #kpi-view-wrap .kv-ind-cell{padding:7px 10px;border-right:1px solid var(--kv-border2);font-size:11px;color:var(--kv-text2);white-space:nowrap;min-width:80px;background:var(--kv-surface3)}
 #kpi-view-wrap .kv-ind-cell.pct-row{background:var(--kv-surface2);font-weight:700;color:var(--navy);font-size:12px}
 #kpi-view-wrap .kv-day-cell{text-align:center;border-right:1px solid var(--kv-border);min-width:68px}
@@ -297,23 +302,23 @@ const Nf = n => n!=null ? (+n).toLocaleString('pt-BR') : '—';
 const pctFmt = (a,b) => b>0 ? +(a/b*100).toFixed(1) : 0;
 
 const K_DISCS=[
-  {name:'Civil',              qt:3262, ql:3262, color:'#388bfd'},
-  {name:'Estrutura Metálica', qt:417,  ql:417,  color:'#bc8cff'},
-  {name:'Tubulação · Pastas', qt:499,  ql:499,  color:'#39d3bb'},
-  {name:'Tubulação · Iso',    qt:581,  ql:581,  color:'#2ab8a0'},
-  {name:'Tubulação · SK009',  qt:1461, ql:1461, color:'#1a8a78'},
-  {name:'Equip. Mecânicos',   qt:378,  ql:378,  color:'#f0883e'},
-  {name:'Equip. Mecânicos · SK',qt:252,ql:252,  color:'#c8662e'},
-  {name:'Elétrico · Normal',  qt:372,  ql:372,  color:'#d29922'},
-  {name:'Elétrico · MTO Normal',qt:6,  ql:6,    color:'#b8831e'},
-  {name:'Elétrico · SK006',   qt:891,  ql:891,  color:'#a06e18'},
-  {name:'Elétrico · Material',qt:3,    ql:3,    color:'#885a12'},
-  {name:'Instrumentação',     qt:6037, ql:6037, color:'#f85149'},
-  {name:'Instrumentação · SK',qt:181,  ql:181,  color:'#d03030'},
-  {name:'HVAC',               qt:10,   ql:10,   color:'#58a6ff'},
-  {name:'TCOM',               qt:68,   ql:25,   color:'#79c0ff'},
-  {name:'Segurança',          qt:162,  ql:162,  color:'#56d364'},
-  {name:'Válvulas',           qt:0,    ql:0,    color:'#06b6d4'}
+  {name:'Civil',                qt:3262, ql:3262, color:'#388bfd', respHC2:'Valéria G.',  respPB:'Luis'},
+  {name:'Estrutura Metálica',   qt:417,  ql:417,  color:'#bc8cff', respHC2:'Paulo M.',    respPB:'R. Tognoni'},
+  {name:'Tubulação · Pastas',   qt:499,  ql:499,  color:'#39d3bb', respHC2:'Moacir C.',   respPB:'Flávio M.'},
+  {name:'Tubulação · Iso',      qt:581,  ql:581,  color:'#2ab8a0', respHC2:'Moacir C.',   respPB:'Flávio M.'},
+  {name:'Tubulação · SK009',    qt:1461, ql:1461, color:'#1a8a78', respHC2:'Moacir C.',   respPB:'Flávio M.'},
+  {name:'Equip. Mecânicos',     qt:378,  ql:378,  color:'#f0883e', respHC2:'Fabricio M./Felipe M.', respPB:'C. Frederico/Raphael T.'},
+  {name:'Equip. Mecânicos · SK',qt:252,  ql:252,  color:'#c8662e', respHC2:'Fabricio M.',   respPB:'C. Frederico/Raphael T.'},
+  {name:'Elétrico · Normal',    qt:372,  ql:372,  color:'#d29922', respHC2:'Marco O.',    respPB:'Francisco X.'},
+  {name:'Elétrico · MTO Normal',qt:6,    ql:6,    color:'#b8831e', respHC2:'Luan R.',    respPB:'Francisco X.'},
+  {name:'Elétrico · SK006',     qt:891,  ql:891,  color:'#a06e18', respHC2:'Luan R.',     respPB:'Francisco X.'},
+  {name:'Elétrico · Material',  qt:3,    ql:3,    color:'#885a12', respHC2:'Luan R.',     respPB:'Francisco X.'},
+  {name:'Instrumentação',       qt:6037, ql:6037, color:'#f85149', respHC2:'Robson D./M. Quintino',   respPB:'Gabriel T./Pamela'},
+  {name:'Instrumentação · SK',  qt:181,  ql:181,  color:'#d03030', respHC2:'Robson D.', respPB:'Gabriel T.'},
+  {name:'HVAC',                 qt:10,   ql:10,   color:'#58a6ff', respHC2:'M. Quintino', respPB:'Pamela'},
+  {name:'TCOM',                 qt:68,   ql:25,   color:'#79c0ff', respHC2:'M. Quintino', respPB:'Pamela'},
+  {name:'Segurança',            qt:162,  ql:162,  color:'#56d364', respHC2:'Fabricio M.', respPB:'C. Frederico'},
+  {name:'Válvulas',             qt:0,    ql:0,    color:'#06b6d4', respHC2:'F. Lobo',     respPB:'Flávio M.'}
 ];
 const K_DISC_GROUPS={
   'Tubulação':['Tubulação · Pastas','Tubulação · Iso','Tubulação · SK009'],
@@ -1576,7 +1581,8 @@ function kRenderTableBody(week,discs,showQt,showQl){
     if(showQt){rowDefs.push({lbl:'Prog.Qt',arr:'prog_qt',isProg:true});rowDefs.push({lbl:'Real.Qt',arr:'real_qt',isProg:false});}
     if(showQl){rowDefs.push({lbl:'Prog.Ql',arr:'prog_ql',isProg:true});rowDefs.push({lbl:'Real.Ql',arr:'real_ql',isProg:false});}
     const rs=rowDefs.length+1;
-    let discCell=`<td class="kv-disc-cell" rowspan="${rs}" style="border-left:3px solid ${disc.color}"><div class="kv-disc-name">${disc.name}</div></td>`;
+    const respHtml=disc.respHC2?`<div class="kv-disc-resp"><div class="kv-disc-resp-row"><span class="kv-resp-tag hc2">HC²</span>${disc.respHC2}</div><div class="kv-disc-resp-row"><span class="kv-resp-tag pb">PB</span>${disc.respPB}</div></div>`:'';
+    let discCell=`<td class="kv-disc-cell" rowspan="${rs}" style="border-left:3px solid ${disc.color}"><div class="kv-disc-name">${disc.name}</div>${respHtml}</td>`;
     // Totais da SEMANA selecionada (soma dos 7 dias)
     const wProgQt=(wd.prog_qt||[]).reduce((a,b)=>a+b,0);
     const wRealQt=(wd.real_qt||[]).reduce((a,b)=>a+b,0);
