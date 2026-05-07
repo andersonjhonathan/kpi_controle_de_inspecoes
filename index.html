@@ -486,7 +486,8 @@ function rebuildAll(){
 }
 
 function updateBadges(){
-  const rest=(kState.pends||[]).filter(p=>p.status!=='concluida').length;
+  // Conta apenas as restrições da origem ativa
+  const rest=(kState.pends||[]).filter(p=>(p.origem||'hc2')===_restOrigem&&p.status!=='concluida').length;
   document.getElementById('hdr-rest').textContent=`🚨 ${rest} Rest.`;
   document.getElementById('nb-rest').textContent=rest;
   const w=K_WEEKS.find(x=>x.num===CW);
@@ -507,7 +508,7 @@ function buildDashboard(){
   progSemana=weekTotal(CW,'prog'); realSemana=weekTotal(CW,'real');
   const pctGlobal=pctFmt(realGlobal,totGlobal);
   const semPct=pctFmt(realSemana,progSemana);
-  const totalPends=(kState.pends||[]).filter(p=>p.status!=='concluida').length;
+  const totalPends=(kState.pends||[]).filter(p=>(p.origem||'hc2')===_restOrigem&&p.status!=='concluida').length;
 
   // Per-disc for bar chart
   const discData = K_DISCS.filter(d=>d.qt>0||d.ql>0).map(d=>{
@@ -572,7 +573,7 @@ function buildDashboard(){
       </table>
     </div>
   </div>
-  <div class="footer">Criado por Anderson Souza · <a href="https://wa.me/5521996413839">📱 (21) 99641-3839</a> · <a href="mailto:andersonjhonathan@gmail.com">andersonjhonathan@gmail.com</a> · Rev. 5.1 · ${new Date().toLocaleDateString('pt-BR')}</div>
+  <div class="footer">Criado por Anderson Souza · <a href="https://wa.me/5521996413839">📱 (21) 99641-3839</a> · <a href="mailto:andersonjhonathan@gmail.com">andersonjhonathan@gmail.com</a> · Rev. 5.2 · ${new Date().toLocaleDateString('pt-BR')}</div>
   `;
 
   // Marco days
@@ -664,7 +665,7 @@ function buildCurvas(){
     <div class="card"><div class="card-hdr"><div class="card-title" id="curva-title1">Curva S Acumulada</div><div class="card-info">ⓘ Programado vs Realizado acumulado</div></div><div class="cw h300"><canvas id="ch-curva-s"></canvas></div></div>
     <div class="card"><div class="card-hdr"><div class="card-title" id="curva-title2">Realizado por Semana</div><div class="card-info">ⓘ Barras semanais</div></div><div class="cw h300"><canvas id="ch-curva-bar"></canvas></div></div>
   </div>
-  <div class="footer">Criado por Anderson Souza · Rev. 5.1</div>`;
+  <div class="footer">Criado por Anderson Souza · Rev. 5.2</div>`;
 
   buildCurvaDiscTabs();
   renderCurva();
@@ -846,7 +847,7 @@ function buildWla6(){
     <div class="card-hdr"><div class="card-title">📊 Programado vs Realizado — Próximas 6 Semanas</div></div>
     <div class="cw h260"><canvas id="ch-wla-bar"></canvas></div>
   </div>
-  <div class="footer">Criado por Anderson Souza · Rev. 5.1</div>`;
+  <div class="footer">Criado por Anderson Souza · Rev. 5.2</div>`;
 
   // Bar chart for 6wla
   const wlabels=wsToShow.map(w=>'S'+String(w.num).padStart(3,'0'));
@@ -902,11 +903,34 @@ function _diasAtraso(p){
   return Math.max(0,Math.round((today.getTime()-dt.getTime())/(1000*60*60*24)));
 }
 
+// ── Origem ativa das restrições: 'hc2' | 'petrobras'
+let _restOrigem = 'hc2';
+
 function buildRestricoes(){
   const c=document.getElementById('view-restricoes'); if(!c) return;
+  const nHc2 = (kState.pends||[]).filter(p=>(p.origem||'hc2')==='hc2').length;
+  const nPb  = (kState.pends||[]).filter(p=>p.origem==='petrobras').length;
   c.innerHTML=`
   <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">
-    <h2 style="font-size:13px;font-weight:800;color:var(--navy)">🚨 Restrições & Pendências</h2>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <h2 style="font-size:13px;font-weight:800;color:var(--navy)">&#x1F6A8; Restri&#xE7;&#xF5;es &amp; Pend&#xEA;ncias</h2>
+      <div style="display:flex;background:var(--bg);border-radius:20px;padding:3px;border:1px solid var(--bdr);gap:2px">
+        <button id="rest-btn-hc2" onclick="setRestOrigem('hc2')"
+          style="padding:4px 14px;border-radius:16px;border:none;font-size:10.5px;font-weight:800;cursor:pointer;font-family:inherit;transition:.2s;
+          background:${_restOrigem==='hc2'?'var(--navy)':'transparent'};color:${_restOrigem==='hc2'?'#fff':'var(--g2)'}">
+          HC&#xB2; &nbsp;<span style="font-size:9px;opacity:.75">(${nHc2})</span>
+        </button>
+        <button id="rest-btn-pb" onclick="setRestOrigem('petrobras')"
+          style="padding:4px 14px;border-radius:16px;border:none;font-size:10.5px;font-weight:800;cursor:pointer;font-family:inherit;transition:.2s;
+          background:${_restOrigem==='petrobras'?'#166534':'transparent'};color:${_restOrigem==='petrobras'?'#fff':'var(--g2)'}">
+          Petrobras &nbsp;<span style="font-size:9px;opacity:.75">(${nPb})</span>
+        </button>
+      </div>
+      <div id="rest-origem-label" style="font-size:10px;font-weight:700;padding:3px 11px;border-radius:12px;
+        background:${_restOrigem==='hc2'?'#dde9ff':'#dcfce7'};color:${_restOrigem==='hc2'?'var(--navy)':'#166534'}">
+        ${_restOrigem==='hc2'?'Restri&#xE7;&#xF5;es Internas HC&#xB2;':'Restri&#xE7;&#xF5;es Petrobras'}
+      </div>
+    </div>
     <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap">
       <select class="fsel" id="rest-filt-status" onchange="renderRestricoes()">
         <option value="">Todos os status</option>
@@ -917,12 +941,12 @@ function buildRestricoes(){
       </select>
       <select class="fsel" id="rest-filt-disc" onchange="renderRestricoes()">
         <option value="">Todas disciplinas</option>
-        ${[...new Set((kState.pends||[]).map(p=>p.disc))].map(d=>`<option value="${d}">${d}</option>`).join('')}
+        ${[...new Set((kState.pends||[]).filter(p=>(p.origem||'hc2')===_restOrigem).map(p=>p.disc))].map(d=>'<option value="'+d+'">'+d+'</option>').join('')}
       </select>
       <div style="position:relative;display:flex;align-items:center">
         <span style="position:absolute;left:8px;color:var(--g2);font-size:12px;pointer-events:none">🔍</span>
         <input id="rest-filt-texto" type="text" placeholder="Buscar por texto..." oninput="renderRestricoes()"
-          style="border:1px solid var(--bdr);border-radius:6px;padding:4px 8px 4px 26px;font-size:10.5px;outline:none;color:var(--navy);background:#fff;width:200px">
+          style="border:1px solid var(--bdr);border-radius:6px;padding:4px 8px 4px 26px;font-size:10.5px;outline:none;color:var(--navy);background:#fff;width:180px">
         <button onclick="document.getElementById('rest-filt-texto').value='';renderRestricoes()" title="Limpar busca"
           style="position:absolute;right:5px;background:none;border:none;cursor:pointer;color:var(--g2);font-size:13px;line-height:1;padding:0">✕</button>
       </div>
@@ -937,17 +961,32 @@ function buildRestricoes(){
   <div class="kpi-row" id="rest-kpis"></div>
   <div id="rest-vencido-banner" style="display:none"></div>
   <div class="rest-grid" id="rest-grid"></div>
-  <div class="footer">Criado por Anderson Souza · Rev. 5.1</div>`;
+  <div class="footer">Criado por Anderson Souza · Rev. 5.2</div>`;
   renderRestricoes();
 }
+
+function setRestOrigem(origem){
+  _restOrigem = origem;
+  _built.restricoes = 0;
+  buildRestricoes();
+  // Atualizar indicador de origem no KPI Semanal
+  const ind=document.getElementById('kpi-pend-origem-ind');
+  if(ind){
+    ind.textContent='+ adicionando em '+(origem==='hc2'?'HC²':'Petrobras');
+    ind.style.background=origem==='hc2'?'#dde9ff':'#dcfce7';
+    ind.style.color=origem==='hc2'?'var(--navy)':'#166534';
+  }
+  if(typeof kRenderPends==='function') kRenderPends();
+}
+
 
 function renderRestricoes(){
   const filtStatus=document.getElementById('rest-filt-status')?.value||'';
   const filtDisc=document.getElementById('rest-filt-disc')?.value||'';
   const filtTexto=(document.getElementById('rest-filt-texto')?.value||'').trim().toLowerCase();
 
-  let pends=(kState.pends||[]);
-  // Filtro vencido é especial
+  // Filtrar por origem (HC² ou Petrobras)
+  let pends=(kState.pends||[]).filter(p=>(p.origem||'hc2')===_restOrigem);
   if(filtStatus==='vencido') pends=pends.filter(p=>_isVencido(p));
   else if(filtStatus) pends=pends.filter(p=>p.status===filtStatus);
   if(filtDisc) pends=pends.filter(p=>p.disc===filtDisc);
@@ -958,11 +997,13 @@ function renderRestricoes(){
     (p.prazo||'').toLowerCase().includes(filtTexto)
   );
 
+  const allPorOrigem=(kState.pends||[]).filter(p=>(p.origem||'hc2')===_restOrigem);
   const el=document.getElementById('rest-count');
-  if(el) el.textContent=`${pends.length} de ${(kState.pends||[]).length} pendência(s)`;
+  if(el) el.textContent=pends.length+' de '+allPorOrigem.length+' pendência(s)';
 
-  // Contagens
-  const allPends=kState.pends||[];
+
+  // Contagens — apenas da origem ativa
+  const allPends=(kState.pends||[]).filter(p=>(p.origem||'hc2')===_restOrigem);
   const nAberta  =allPends.filter(p=>p.status==='aberta').length;
   const nAndamento=allPends.filter(p=>p.status==='andamento').length;
   const nConcluida=allPends.filter(p=>p.status==='concluida').length;
@@ -1094,10 +1135,10 @@ function exportRestricoesPDF(){
   const statusColors={aberta:'#C8102E',andamento:'#D97706',concluida:'#059669'};
   const statusBgs   ={aberta:'#FEE2E2',andamento:'#FEF3C7',concluida:'#D1FAE5'};
   const statusLabels={aberta:'Aberta',andamento:'Em andamento',concluida:'Conclu\xEDda'};
-  const aberta  =(kState.pends||[]).filter(p=>p.status==='aberta').length;
-  const andamento=(kState.pends||[]).filter(p=>p.status==='andamento').length;
-  const concluida=(kState.pends||[]).filter(p=>p.status==='concluida').length;
-  const vencidas=(kState.pends||[]).filter(p=>_isVencido(p)).length;
+  const aberta  =(kState.pends||[]).filter(p=>(p.origem||'hc2')===_restOrigem&&p.status==='aberta').length;
+  const andamento=(kState.pends||[]).filter(p=>(p.origem||'hc2')===_restOrigem&&p.status==='andamento').length;
+  const concluida=(kState.pends||[]).filter(p=>(p.origem||'hc2')===_restOrigem&&p.status==='concluida').length;
+  const vencidas=(kState.pends||[]).filter(p=>(p.origem||'hc2')===_restOrigem&&_isVencido(p)).length;
   const now=new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'});
   const semana='S'+String(CW).padStart(3,'0');
   const sorted=[...pends].sort((a,b)=>{
@@ -1213,7 +1254,7 @@ function buildRundown(){
     <div class="tbar"><h3 id="rd-tbl-title">Detalhamento por Disciplina</h3><div style="font-size:10px;color:var(--g2)" id="rd-tbl-sub"></div></div>
     <div class="twrap"><table><thead id="rd-thead"></thead><tbody id="rd-tbody"></tbody></table></div>
   </div>
-  <div class="footer">Criado por Anderson Souza · Rev. 5.1</div>`;
+  <div class="footer">Criado por Anderson Souza · Rev. 5.2</div>`;
 
   renderRundown();
 }
@@ -1450,8 +1491,12 @@ function buildKpiView(){
 
     <div class="kv-panel">
       <div class="kv-panel-header">
-        <span class="kv-panel-title">Restrições & Pendências</span>
-        <div style="display:flex;align-items:center;gap:8px">
+        <span class="kv-panel-title">Restrições & Pendências — <span id="kpi-pend-orig-lbl" style="color:${_restOrigem==='hc2'?'var(--orange)':'#6ee7b7'}">${_restOrigem==='hc2'?'HC²':'Petrobras'}</span></span>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <div style="display:flex;background:rgba(255,255,255,.1);border-radius:8px;padding:2px;gap:2px">
+            <button onclick="setRestOrigem('hc2')" style="font-size:10px;padding:3px 10px;border-radius:6px;border:none;font-weight:700;cursor:pointer;font-family:inherit;transition:.15s;background:${_restOrigem==='hc2'?'rgba(255,255,255,.25)':'transparent'};color:#fff">HC²</button>
+            <button onclick="setRestOrigem('petrobras')" style="font-size:10px;padding:3px 10px;border-radius:6px;border:none;font-weight:700;cursor:pointer;font-family:inherit;transition:.15s;background:${_restOrigem==='petrobras'?'#166534':'transparent'};color:#fff">Petrobras</button>
+          </div>
           <select class="kv-select" id="k-pendFiltSel" onchange="kRenderPends()" style="background:var(--bg);color:var(--navy);border:1px solid var(--bdr);font-size:11px;padding:4px 8px">
             <option value="">Todas as disciplinas</option><option value="Geral">Geral</option>
           </select>
@@ -1464,6 +1509,7 @@ function buildKpiView(){
         <select class="kv-select" id="k-pendStatusSel" style="background:var(--bg);color:var(--navy);border:1px solid var(--bdr)">
           <option value="aberta">Aberta</option><option value="andamento">Em andamento</option><option value="concluida">Concluída</option>
         </select>
+        <div id="kpi-pend-origem-ind" style="font-size:10px;font-weight:700;padding:3px 9px;border-radius:8px;background:#dde9ff;color:var(--navy)">+ adicionando em HC²</div>
         <button class="kv-pend-add-btn" style="width:auto;padding:5px 14px" onclick="kAddPend()">+ Nova pendência</button>
       </div>
     </div>
@@ -1486,7 +1532,7 @@ function buildKpiView(){
       <div class="kv-sig-right">
         <span class="kv-sig-tag blue">HC² Consórcio</span>
         <div class="kv-sig-div"></div><span class="kv-sig-tag">GASLUB EPC05</span>
-        <div class="kv-sig-div"></div><span class="kv-sig-tag teal">Rev. 5.1</span>
+        <div class="kv-sig-div"></div><span class="kv-sig-tag teal">Rev. 5.2</span>
         <div class="kv-sig-div"></div><span class="kv-sig-tag">abr/2026</span>
       </div>
     </div>
@@ -1640,10 +1686,8 @@ function kSetVal(disc,weekNum,arr,di,val){
   if(!kState.weeks[weekNum].disc[disc]) kState.weeks[weekNum].disc[disc]={prog_qt:Array(7).fill(0),real_qt:Array(7).fill(0),prog_ql:Array(7).fill(0),real_ql:Array(7).fill(0)};
   kState.weeks[weekNum].disc[disc][arr][di]=parseFloat(val)||0;
   kSave();
-  // Re-render KPI table + cards + acum + footer imediatamente
   kRenderAll();
-  // Marca outras views para rebuild no próximo acesso
-  _built.dashboard=0; _built.curvas=0; _built.wla6=0; _built.restricoes=0;
+  _built.dashboard=0; _built.curvas=0; _built.wla6=0; _built.restricoes=0; _built.rundown=0;
 }
 function kRenderAcum(){
   const tbody=document.getElementById('k-acumBody'); if(!tbody) return;
@@ -1678,20 +1722,32 @@ function kRenderAcum(){
 }
 function kRenderPends(){
   const flt=document.getElementById('k-pendFiltSel')?.value;
-  const pends=(kState.pends||[]).filter(p=>!flt||p.disc===flt);
-  const cnt=document.getElementById('k-pendCount'); if(cnt) cnt.textContent=pends.length+' pendências';
+  // Filtrar por origem (sincronizado com a aba Restrições)
+  const origem=_restOrigem||'hc2';
+  const pends=(kState.pends||[]).filter(p=>(p.origem||'hc2')===origem&&(!flt||p.disc===flt));
+  const cnt=document.getElementById('k-pendCount');
+  const nHc2=(kState.pends||[]).filter(p=>(p.origem||'hc2')==='hc2').length;
+  const nPb =(kState.pends||[]).filter(p=>p.origem==='petrobras').length;
+  if(cnt) cnt.textContent=pends.length+' | HC²: '+nHc2+' · PB: '+nPb;
+  // Atualizar label do toggle no painel KPI
+  const kOrigLabel=document.getElementById('kpi-pend-orig-lbl');
+  if(kOrigLabel) kOrigLabel.textContent=origem==='hc2'?'HC²':'Petrobras';
   const grid=document.getElementById('k-pendGrid'); if(!grid) return;
   const statusColors={aberta:'#dc2626',andamento:'#d97706',concluida:'#059669'};
   const statusBgs={aberta:'#fee2e2',andamento:'#fef3c7',concluida:'#d1fae5'};
   const statusLabels={aberta:'Aberta',andamento:'Em andamento',concluida:'Concluída'};
+  const isPb=origem==='petrobras';
   grid.innerHTML=pends.map((p)=>{
     const discIdx=kState.pends.indexOf(p);
-    return `<div class="kv-pend-card">
+    const isVenc=_isVencido(p);
+    return `<div class="kv-pend-card" style="${isVenc?'border:1.5px solid #DC2626;background:linear-gradient(to bottom,#fff5f5,#fff)':isPb?'border-top:2px solid #166534':''}">
       <button class="kv-pend-del" onclick="kDelPend(${discIdx})">✕</button>
       <div class="kv-pend-card-header">
-        <span class="kv-pend-disc-tag">${p.disc||'Geral'}</span>
+        <span class="kv-pend-disc-tag" style="${isPb?'background:#dcfce7;color:#166534':''}">${p.disc||'Geral'}</span>
+        ${isPb?'<span style="font-size:9px;background:#166534;color:#fff;padding:1px 6px;border-radius:4px;font-weight:700">PB</span>':''}
         <button class="kv-pend-status-tag" style="background:${statusBgs[p.status]||'#eef1f8'};color:${statusColors[p.status]||'var(--grey)'}" onclick="kCycleStatus(${discIdx})">${statusLabels[p.status]||p.status}</button>
       </div>
+      ${_isVencido(p)?'<div style="font-size:9.5px;background:#FEE2E2;color:#DC2626;font-weight:700;padding:3px 8px;border-radius:5px;margin-bottom:5px">🔥 VENCIDA — '+_diasAtraso(p)+'d atrasada</div>':''} 
       <textarea class="kv-pend-textarea" oninput="kState.pends[${discIdx}].text=this.value;kSave()">${p.text||''}</textarea>
       <div class="kv-pend-meta">
         <div class="kv-pend-meta-field"><div class="kv-pend-meta-label">Responsável</div><input class="kv-pend-meta-input" type="text" value="${p.resp||''}" oninput="kState.pends[${discIdx}].resp=this.value;kSave()"></div>
@@ -1704,14 +1760,15 @@ function kRenderPends(){
 function kAddPend(){
   const disc=document.getElementById('k-pendDiscSel')?.value||'Geral';
   const status=document.getElementById('k-pendStatusSel')?.value||'aberta';
-  kState.pends.push({disc,status,text:'',resp:'',prazo:'',date:new Date().toLocaleDateString('pt-BR')});
+  const origem=_restOrigem||'hc2';
+  kState.pends.push({disc,status,origem,text:'',resp:'',prazo:'',date:new Date().toLocaleDateString('pt-BR')});
   kSave(); kRenderPends(); updateBadges();
-  // refresh restricoes view if built
   if(_built.restricoes){_built.restricoes=0; buildRestricoes();}
 }
 function kDelPend(i){
   kState.pends.splice(i,1); kSave(); kRenderPends(); updateBadges();
   if(_built.restricoes){_built.restricoes=0; buildRestricoes();}
+  if(_built.dashboard){_built.dashboard=0; buildDashboard();}
 }
 function kCycleStatus(i){
   const order=['aberta','andamento','concluida'];
@@ -1719,6 +1776,8 @@ function kCycleStatus(i){
   kState.pends[i].status=order[(order.indexOf(cur)+1)%3];
   kSave(); kRenderPends(); updateBadges();
   if(_built.restricoes){_built.restricoes=0; buildRestricoes();}
+  // Refresh dashboard pend count
+  if(_built.dashboard){_built.dashboard=0; buildDashboard();}
 }
 function kRenderFooter(){
   const totExec=K_DISCS.reduce((s,d)=>{const a=discAcum(d.name);return s+a.total;},0);
@@ -1766,9 +1825,11 @@ function _setStatus(msg, color) {
   // Badge de status no KPI Semanal (somente texto)
   const kSt=document.getElementById('kDriveStatus');
   if(kSt){ kSt.textContent=msg; kSt.style.color=color||'rgba(255,255,255,.65)'; }
-  // Status no header
+  // Status no header + KPI panel
   const hSt=document.getElementById('driveStatus');
   if(hSt){ hSt.textContent=msg; hSt.style.color=color||'rgba(255,255,255,.65)'; }
+  const kSt2=document.getElementById('kDriveStatus');
+  if(kSt2){ kSt2.textContent=msg; kSt2.style.color=color||'rgba(255,255,255,.7)'; }
   // Botão único no header
   const btn=document.getElementById('driveBtn');
   if(!btn) return;
@@ -1939,11 +2000,18 @@ async function _driveLoad() {
       await _driveSaveNow();
     }
     _setStatus('Sincronizado ✓', '#3fb950');
+    // Token expira em ~1h — agendar aviso
+    clearTimeout(_tokenExpireTimer);
+    _tokenExpireTimer = setTimeout(()=>{
+      _setStatus('⚠ Token expirado — reconecte', '#f85149');
+      _driveReady = false;
+    }, 55*60*1000);
   } catch(err) {
     console.error('Erro ao carregar:', err);
     _setStatus('Erro ao carregar', '#f85149');
   }
 }
+let _tokenExpireTimer = null;
 
 function driveSave() {
   if (!_driveReady) return;
@@ -1968,6 +2036,13 @@ async function _driveSaveNow() {
   }
 }
 
+// Auto-sync Drive a cada 5 minutos quando conectado
+setInterval(()=>{ if(_driveReady && !document.hidden) driveSave(); }, 5*60*1000);
+// Salvar ao sair/minimizar a aba
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden && _driveReady) _driveSaveNow();
+});
+
 // Init
 document.addEventListener('DOMContentLoaded',()=>{
   updateBadges();
@@ -1975,6 +2050,12 @@ document.addEventListener('DOMContentLoaded',()=>{
 });
 window.addEventListener('keydown',e=>{
   if(e.key==='Escape') { /* nada a fechar */ }
+  // Ctrl+S = forçar save no Drive
+  if((e.ctrlKey||e.metaKey) && e.key==='s'){
+    e.preventDefault();
+    if(_driveReady){ driveSave(); _setStatus('💾 Salvo!','#3fb950'); }
+    else { try{localStorage.setItem('kpi_v4',JSON.stringify(kState));}catch(e){} }
+  }
 });
 </script>
 </body>
