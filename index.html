@@ -1817,7 +1817,7 @@ const DRIVE_CLIENT_ID = '188106832369-vhde8aeukj7ifcl8c7fdigmtkdgvrn2m.apps.goog
 const DRIVE_FILENAME  = 'kpi_state.json';
 // ID fixo do arquivo no Drive do Anderson — todos os usuários apontam para o mesmo arquivo
 const DRIVE_FILE_ID   = '1QuJA3G_wBaHelLatLroFDP5KRRJW-Irt';
-const DRIVE_SCOPE     = 'https://www.googleapis.com/auth/drive';
+const DRIVE_SCOPE     = 'https://www.googleapis.com/auth/drive openid profile email';
 
 let _driveToken     = null;
 let _driveFileId    = null;
@@ -1910,15 +1910,25 @@ async function driveToggle() {
   try {
     _driveToken  = await _getToken();
     _setStatus('Identificando usuário...', '#d29922');
-    // Buscar nome do usuário logado
+    // Buscar nome do usuário — pequeno delay para garantir token ativo
     try {
-      const uRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', { headers: _auth() });
+      await new Promise(r => setTimeout(r, 300));
+      const uRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: { Authorization: 'Bearer ' + _driveToken }
+      });
       if (uRes.ok) {
         const uData = await uRes.json();
-        const firstName = (uData.given_name || uData.name || '').split(' ')[0];
+        const firstName = (uData.given_name || uData.name || uData.email || '').split(' ')[0];
         _driveUserName = firstName;
+        console.log('[Drive] Usuário identificado:', _driveUserName);
+      } else {
+        console.warn('[Drive] userinfo retornou:', uRes.status, '— continuando sem nome');
+        _driveUserName = '';
       }
-    } catch(e) { _driveUserName = ''; }
+    } catch(e) {
+      console.warn('[Drive] Não foi possível obter nome do usuário:', e.message);
+      _driveUserName = '';
+    }
     _setStatus('Localizando arquivo...', '#d29922');
     _driveFileId = await _findOrCreateFile();
     _driveReady  = true;
