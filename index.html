@@ -1823,6 +1823,7 @@ let _driveToken     = null;
 let _driveFileId    = null;
 let _driveReady     = false;
 let _driveSaveTimer = null;
+let _driveUserName  = '';  // Nome do usuário logado no Drive
 
 function _setStatus(msg, color) {
   // Badge de status no KPI Semanal (somente texto)
@@ -1837,7 +1838,7 @@ function _setStatus(msg, color) {
   const btn=document.getElementById('driveBtn');
   if(!btn) return;
   if(color==='#3fb950'){
-    btn.textContent='☁ Drive ✓';
+    btn.textContent = _driveUserName ? `☁ ${_driveUserName} ✓` : '☁ Drive ✓';
     Object.assign(btn.style,{background:'rgba(5,150,105,.3)',color:'#6ee7b7',borderColor:'rgba(5,150,105,.5)'});
     btn.title='Clique para desconectar';
   } else if(color==='#f85149'){
@@ -1908,10 +1909,21 @@ async function driveToggle() {
   _setStatus('Abrindo login...', '#d29922');
   try {
     _driveToken  = await _getToken();
+    _setStatus('Identificando usuário...', '#d29922');
+    // Buscar nome do usuário logado
+    try {
+      const uRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', { headers: _auth() });
+      if (uRes.ok) {
+        const uData = await uRes.json();
+        const firstName = (uData.given_name || uData.name || '').split(' ')[0];
+        _driveUserName = firstName;
+      }
+    } catch(e) { _driveUserName = ''; }
     _setStatus('Localizando arquivo...', '#d29922');
     _driveFileId = await _findOrCreateFile();
     _driveReady  = true;
-    _setStatus('Sincronizado ✓', '#3fb950');
+    const who = _driveUserName ? ` · ${_driveUserName}` : '';
+    _setStatus(`Sincronizado ✓${who}`, '#3fb950');
     await _driveLoad();
   } catch(err) {
     console.error('Drive error:', err);
@@ -1927,7 +1939,7 @@ async function driveToggle() {
 }
 
 function _driveDisconnect() {
-  _driveReady = false; _driveToken = null; _driveFileId = null;
+  _driveReady = false; _driveToken = null; _driveFileId = null; _driveUserName = '';
   _setStatus('Desconectado', null);
 }
 
@@ -2011,7 +2023,8 @@ async function _driveLoad() {
     } else {
       await _driveSaveNow();
     }
-    _setStatus('Sincronizado ✓', '#3fb950');
+    const who = _driveUserName ? ` · ${_driveUserName}` : '';
+    _setStatus(`Sincronizado ✓${who}`, '#3fb950');
     // Token expira em ~1h — agendar aviso
     clearTimeout(_tokenExpireTimer);
     _tokenExpireTimer = setTimeout(()=>{
@@ -2041,7 +2054,8 @@ async function _driveSaveNow() {
     );
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const t = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
-    _setStatus(`Salvo ✓ ${t}`, '#3fb950');
+    const who = _driveUserName ? ` · ${_driveUserName}` : '';
+    _setStatus(`Salvo ✓ ${t}${who}`, '#3fb950');
   } catch(err) {
     console.error('Erro ao salvar:', err);
     _setStatus('Erro ao salvar!', '#f85149');
