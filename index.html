@@ -1817,7 +1817,7 @@ const DRIVE_CLIENT_ID = '188106832369-vhde8aeukj7ifcl8c7fdigmtkdgvrn2m.apps.goog
 const DRIVE_FILENAME  = 'kpi_state.json';
 // ID fixo do arquivo no Drive do Anderson — todos os usuários apontam para o mesmo arquivo
 const DRIVE_FILE_ID   = '1QuJA3G_wBaHelLatLroFDP5KRRJW-Irt';
-const DRIVE_SCOPE     = 'https://www.googleapis.com/auth/drive openid profile email';
+const DRIVE_SCOPE     = 'https://www.googleapis.com/auth/drive';
 
 let _driveToken     = null;
 let _driveFileId    = null;
@@ -1910,24 +1910,28 @@ async function driveToggle() {
   try {
     _driveToken  = await _getToken();
     _setStatus('Identificando usuário...', '#d29922');
-    // Buscar nome do usuário — pequeno delay para garantir token ativo
+    // Extrair nome diretamente do token JWT (sem chamada extra de API)
     try {
-      await new Promise(r => setTimeout(r, 300));
-      const uRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-        headers: { Authorization: 'Bearer ' + _driveToken }
-      });
-      if (uRes.ok) {
-        const uData = await uRes.json();
-        const firstName = (uData.given_name || uData.name || uData.email || '').split(' ')[0];
+      // O access_token do Google é um JWT — decodificar o payload (parte do meio)
+      const parts = _driveToken.split('.');
+      if (parts.length === 3) {
+        const payload = JSON.parse(atob(parts[1].replace(/-/g,'+').replace(/_/g,'/')));
+        const firstName = (payload.given_name || payload.name || payload.email || '').split(' ')[0];
         _driveUserName = firstName;
-        console.log('[Drive] Usuário identificado:', _driveUserName);
-      } else {
-        console.warn('[Drive] userinfo retornou:', uRes.status, '— continuando sem nome');
-        _driveUserName = '';
+        console.log('[Drive] Usuário (JWT):', _driveUserName, payload);
       }
     } catch(e) {
-      console.warn('[Drive] Não foi possível obter nome do usuário:', e.message);
-      _driveUserName = '';
+      // Fallback: tentar email via tokeninfo
+      try {
+        const tRes = await fetch(
+          `https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=${_driveToken}`
+        );
+        if (tRes.ok) {
+          const tData = await tRes.json();
+          _driveUserName = (tData.email || '').split('@')[0];
+          console.log('[Drive] Usuário (tokeninfo):', _driveUserName);
+        }
+      } catch(e2) { _driveUserName = ''; }
     }
     _setStatus('Localizando arquivo...', '#d29922');
     _driveFileId = await _findOrCreateFile();
