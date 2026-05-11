@@ -1815,6 +1815,8 @@ function kDriveToggle(){ driveToggle(); }
 // ══════════════════════════════════════════════════════════
 const DRIVE_CLIENT_ID = '188106832369-vhde8aeukj7ifcl8c7fdigmtkdgvrn2m.apps.googleusercontent.com';
 const DRIVE_FILENAME  = 'kpi_state.json';
+// ID fixo do arquivo no Drive do Anderson — todos os usuários apontam para o mesmo arquivo
+const DRIVE_FILE_ID   = '1QuJA3G_wBaHelLatLroFDP5KRRJW-Irt';
 const DRIVE_SCOPE     = 'https://www.googleapis.com/auth/drive';
 
 let _driveToken     = null;
@@ -1914,8 +1916,11 @@ async function driveToggle() {
   } catch(err) {
     console.error('Drive error:', err);
     _setStatus('Erro!', '#f85149');
-    alert('Erro ao conectar com Google Drive.\n\n' + err.message +
-          '\n\nVerifique:\n• CLIENT_ID correto\n• Domínio autorizado no Google Cloud Console');
+    const msg = err.message.includes('Sem acesso')
+      ? err.message
+      : 'Erro ao conectar com Google Drive.\n\n' + err.message +
+        '\n\nVerifique:\n• Conta Google autorizada no sistema\n• Arquivo kpi_state.json compartilhado com seu e-mail';
+    alert(msg);
   } finally {
     if (btn) btn.disabled = false;
   }
@@ -1930,24 +1935,30 @@ function _driveDisconnect() {
 function _auth() { return { Authorization: 'Bearer ' + _driveToken }; }
 
 async function _findOrCreateFile() {
-  const q = encodeURIComponent("name contains 'kpi_state' and trashed=false");
-  const res = await fetch(
-    `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,modifiedTime,size)&orderBy=modifiedTime+desc&spaces=drive`,
-    { headers: _auth() }
-  );
-  if (!res.ok) throw new Error('Erro ao buscar arquivo: HTTP ' + res.status);
-  const data = await res.json();
-  console.log('[KPI Drive] Arquivos encontrados:', JSON.stringify(data.files));
-  if (data.files && data.files.length > 0) {
-    const sorted = data.files.sort((a, b) => (parseInt(b.size)||0) - (parseInt(a.size)||0));
-    console.log('[KPI Drive] Usando:', sorted[0].name, sorted[0].id, 'size:', sorted[0].size);
-    sorted.slice(1).forEach(f => {
-      fetch(`https://www.googleapis.com/drive/v3/files/${f.id}`, { method: 'DELETE', headers: _auth() });
-    });
-    return sorted[0].id;
+  // Usar sempre o ID fixo do arquivo do Anderson no Drive
+  // Verificar se o arquivo ainda existe e está acessível
+  try {
+    const res = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${DRIVE_FILE_ID}?fields=id,name,size,modifiedTime`,
+      { headers: _auth() }
+    );
+    if (res.ok) {
+      const data = await res.json();
+      console.log('[KPI Drive] Arquivo encontrado:', data.name, '— size:', data.size, '— modificado:', data.modifiedTime);
+      return DRIVE_FILE_ID;
+    }
+    // Se 404, o usuário não tem acesso — orientar
+    if (res.status === 403 || res.status === 404) {
+      throw new Error(
+        'Sem acesso ao arquivo.\n\n' +
+        'Peça ao Anderson para compartilhar o kpi_state.json com sua conta Google com permissão de Editor.'
+      );
+    }
+    throw new Error('Erro ao verificar arquivo: HTTP ' + res.status);
+  } catch(err) {
+    if (err.message.includes('Sem acesso')) throw err;
+    throw new Error('Não foi possível acessar o arquivo no Drive: ' + err.message);
   }
-  console.log('[KPI Drive] Nenhum arquivo — criando novo');
-  return _createFile();
 }
 
 async function _createFile() {
