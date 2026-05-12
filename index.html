@@ -961,9 +961,203 @@ function buildRestricoes(){
   </div>
   <div class="kpi-row" id="rest-kpis"></div>
   <div id="rest-vencido-banner" style="display:none"></div>
+
+  <!-- GRÁFICOS -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px" id="rest-charts-wrap">
+    <div class="card">
+      <div class="card-hdr">
+        <div class="card-title">📊 Status por Disciplina</div>
+        <div class="card-info">ⓘ Filtros aplicados</div>
+      </div>
+      <div style="position:relative;height:240px"><canvas id="rest-ch-disc"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-hdr">
+        <div class="card-title">🍩 Distribuição por Status</div>
+        <div class="card-info">ⓘ Filtros aplicados</div>
+      </div>
+      <div style="position:relative;height:240px"><canvas id="rest-ch-status"></canvas></div>
+    </div>
+  </div>
+
   <div class="rest-grid" id="rest-grid"></div>
   <div class="footer">Criado por Anderson Souza · Rev. 5.2</div>`;
   renderRestricoes();
+}
+
+// ══════════════════════════════════════════════════════════
+// GRÁFICOS DAS RESTRIÇÕES — reagem aos filtros
+// ══════════════════════════════════════════════════════════
+let _restCharts = {};
+
+function renderRestChart(pends) {
+  // Destruir charts anteriores
+  Object.values(_restCharts).forEach(c => { try { c.destroy(); } catch{} });
+  _restCharts = {};
+
+  // Ocultar área de gráficos se não houver dados
+  const wrap = document.getElementById('rest-charts-wrap');
+  if (wrap) wrap.style.display = pends.length === 0 ? 'none' : 'grid';
+  if (pends.length === 0) return;
+
+  // ── Dados: agrupar por disciplina ──────────────────────
+  const discMap = {};
+  pends.forEach(p => {
+    const d = p.disc || 'Geral';
+    if (!discMap[d]) discMap[d] = { aberta: 0, andamento: 0, concluida: 0, vencida: 0, total: 0 };
+    discMap[d].total++;
+    if (_isVencido(p))       discMap[d].vencida++;
+    else if (p.status === 'aberta')    discMap[d].aberta++;
+    else if (p.status === 'andamento') discMap[d].andamento++;
+    else if (p.status === 'concluida') discMap[d].concluida++;
+  });
+
+  // Ordenar disciplinas por total desc
+  const discs = Object.entries(discMap).sort((a,b) => b[1].total - a[1].total);
+  const discLabels = discs.map(([d]) => d.length > 16 ? d.slice(0,15) + '…' : d);
+
+  // ── GRÁFICO 1: Barras empilhadas por disciplina ────────
+  const ch1 = document.getElementById('rest-ch-disc');
+  if (ch1) {
+    _restCharts.disc = new Chart(ch1.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: discLabels,
+        datasets: [
+          {
+            label: '🔥 Vencidas',
+            data: discs.map(([,v]) => v.vencida),
+            backgroundColor: 'rgba(220,38,38,.85)',
+            borderRadius: 3,
+          },
+          {
+            label: '🔴 Abertas',
+            data: discs.map(([,v]) => v.aberta),
+            backgroundColor: 'rgba(200,16,46,.65)',
+            borderRadius: 3,
+          },
+          {
+            label: '🟡 Em andamento',
+            data: discs.map(([,v]) => v.andamento),
+            backgroundColor: 'rgba(217,119,6,.75)',
+            borderRadius: 3,
+          },
+          {
+            label: '🟢 Concluídas',
+            data: discs.map(([,v]) => v.concluida),
+            backgroundColor: 'rgba(5,150,105,.7)',
+            borderRadius: 3,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        indexAxis: discs.length > 5 ? 'y' : 'x',
+        plugins: {
+          legend: { position: 'bottom', labels: { font: { size: 10 }, boxWidth: 12, padding: 8 } },
+          tooltip: {
+            mode: 'index', intersect: false,
+            callbacks: {
+              footer: items => {
+                const total = items.reduce((s, i) => s + i.raw, 0);
+                return `Total: ${total}`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: { stacked: true, grid: { display: false }, ticks: { font: { size: 9 } } },
+          y: { stacked: true, grid: { color: '#F0F3FA' }, ticks: { font: { size: 9 } } }
+        }
+      }
+    });
+  }
+
+  // ── GRÁFICO 2: Rosca por status ────────────────────────
+  const nAberta    = pends.filter(p => p.status === 'aberta' && !_isVencido(p)).length;
+  const nAndamento = pends.filter(p => p.status === 'andamento' && !_isVencido(p)).length;
+  const nConcluida = pends.filter(p => p.status === 'concluida').length;
+  const nVencida   = pends.filter(p => _isVencido(p)).length;
+
+  const statusData   = [nVencida, nAberta, nAndamento, nConcluida].filter(v => v > 0);
+  const statusLabels2 = [];
+  const statusColors2 = [];
+  const allStatus = [
+    { label: 'Vencidas', val: nVencida,   color: '#DC2626' },
+    { label: 'Abertas',  val: nAberta,    color: '#C8102E' },
+    { label: 'Em andamento', val: nAndamento, color: '#D97706' },
+    { label: 'Concluídas',   val: nConcluida,  color: '#059669' },
+  ];
+  allStatus.forEach(s => { if (s.val > 0) { statusLabels2.push(s.label); statusColors2.push(s.color); } });
+
+  const ch2 = document.getElementById('rest-ch-status');
+  if (ch2) {
+    _restCharts.status = new Chart(ch2.getContext('2d'), {
+      type: 'doughnut',
+      data: {
+        labels: statusLabels2,
+        datasets: [{
+          data: statusData,
+          backgroundColor: statusColors2,
+          borderWidth: 3,
+          borderColor: '#fff',
+          hoverOffset: 8,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '65%',
+        plugins: {
+          legend: {
+            position: 'right',
+            labels: { font: { size: 10.5 }, boxWidth: 13, padding: 10,
+              generateLabels: chart => {
+                const ds = chart.data.datasets[0];
+                return chart.data.labels.map((lbl, i) => ({
+                  text: `${lbl}  ${ds.data[i]}`,
+                  fillStyle: ds.backgroundColor[i],
+                  strokeStyle: '#fff',
+                  lineWidth: 2,
+                  index: i,
+                }));
+              }
+            }
+          },
+          tooltip: {
+            callbacks: {
+              label: ctx => {
+                const total = ctx.dataset.data.reduce((a,b) => a+b, 0);
+                const pct = total > 0 ? Math.round(ctx.raw / total * 100) : 0;
+                return ` ${ctx.label}: ${ctx.raw} (${pct}%)`;
+              }
+            }
+          }
+        }
+      },
+      plugins: [{
+        // Texto central com total
+        id: 'centerText',
+        afterDraw(chart) {
+          const { ctx, chartArea: { width, height, top, left } } = chart;
+          const total = chart.data.datasets[0].data.reduce((a,b) => a+b, 0);
+          ctx.save();
+          const cx = left + width / 2 - (chart.legend?.width || 0) / 2;
+          const cy = top + height / 2;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.font = 'bold 22px Segoe UI';
+          ctx.fillStyle = '#182554';
+          ctx.fillText(total, cx, cy - 8);
+          ctx.font = '10px Segoe UI';
+          ctx.fillStyle = '#798189';
+          ctx.fillText('pendências', cx, cy + 10);
+          ctx.restore();
+        }
+      }]
+    });
+  }
 }
 
 function setRestOrigem(origem){
@@ -1047,6 +1241,9 @@ function renderRestricoes(){
       banner.style.display='none';
     }
   }
+
+  // ── GRÁFICOS (reagem aos filtros) ─────────────────────
+  renderRestChart(pends);
 
   // Render cards
   const statusColors={aberta:'var(--red)',andamento:'var(--yellow)',concluida:'var(--green)'};
