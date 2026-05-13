@@ -252,6 +252,49 @@ tr:hover td{background:#eef3ff!important}
 .btn1{background:var(--navy);color:#fff;border:none;border-radius:7px;padding:7px 16px;font-size:11.5px;font-weight:700;cursor:pointer}
 .btn2{background:var(--bg);color:var(--grey);border:1px solid var(--bdr);border-radius:7px;padding:7px 16px;font-size:11.5px;cursor:pointer}
 .mbts{display:flex;gap:8px;margin-top:14px;justify-content:flex-end}
+
+/* FAB */
+.fab{position:fixed;bottom:22px;right:22px;width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--orange),var(--acc));border:none;color:#fff;font-size:22px;cursor:pointer;box-shadow:0 4px 20px rgba(229,108,53,.5);z-index:900;transition:transform .2s;display:flex;align-items:center;justify-content:center}
+.fab:hover{transform:scale(1.12)}
+.fab-badge{position:absolute;top:-4px;right:-4px;background:#DC2626;color:#fff;border-radius:10px;font-size:9px;font-weight:900;padding:1px 5px;border:2px solid #fff;min-width:18px;text-align:center}
+/* Modal */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(10,20,60,.55);z-index:1000;align-items:center;justify-content:center;backdrop-filter:blur(3px)}
+.modal-overlay.open{display:flex}
+.modal-box{background:var(--card);border-radius:14px;padding:22px;max-width:96vw;max-height:90vh;overflow-y:auto;box-shadow:0 24px 80px rgba(0,0,0,.35);animation:modalIn .2s ease}
+@keyframes modalIn{from{opacity:0;transform:scale(.95) translateY(8px)}to{opacity:1;transform:none}}
+.modal-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:12px}
+.modal-hdr h2{font-size:15px;font-weight:800;color:var(--navy)}
+.modal-close{background:var(--bg);border:1px solid var(--bdr);border-radius:8px;padding:4px 10px;cursor:pointer;font-size:13px;color:var(--g2)}
+.modal-close:hover{background:var(--navy);color:#fff}
+/* Busca global */
+.global-search-wrap{position:relative;display:flex;align-items:center}
+.global-search{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);border-radius:20px;padding:5px 12px 5px 32px;color:#fff;font-size:10.5px;width:180px;outline:none;transition:.25s;font-family:inherit}
+.global-search::placeholder{color:rgba(255,255,255,.5)}
+.global-search:focus{background:rgba(255,255,255,.2);width:240px;border-color:rgba(255,255,255,.5)}
+.global-search-icon{position:absolute;left:10px;color:rgba(255,255,255,.6);font-size:12px;pointer-events:none}
+.global-results{display:none;position:absolute;top:calc(100% + 6px);right:0;width:360px;background:var(--card);border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,.25);border:1px solid var(--bdr);z-index:999;max-height:340px;overflow-y:auto}
+.global-results.open{display:block}
+.gr-item{padding:9px 13px;border-bottom:1px solid var(--bdr);cursor:pointer;font-size:11px;display:flex;align-items:center;gap:8px;transition:.1s}
+.gr-item:hover{background:var(--bg)}
+.gr-item:last-child{border-bottom:none}
+.gr-tag{font-size:9px;padding:2px 7px;border-radius:5px;font-weight:700;white-space:nowrap}
+.gr-item-text{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--grey)}
+.gr-empty{padding:20px;text-align:center;color:var(--g2);font-size:11px}
+/* Responsáveis */
+.resp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px;margin-bottom:12px}
+.resp-card{background:var(--card);border-radius:var(--rs);padding:14px;box-shadow:var(--sh);border-left:4px solid var(--navy)}
+.resp-avatar{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--navy),var(--teal));color:#fff;font-size:13px;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.resp-name{font-size:13px;font-weight:800;color:var(--navy)}
+.resp-sub{font-size:10px;color:var(--g2);margin-top:1px}
+.resp-pills{display:flex;gap:4px;flex-wrap:wrap;margin-top:8px}
+.resp-pill{font-size:9.5px;padding:2px 8px;border-radius:8px;font-weight:700}
+/* Marco animado */
+@keyframes pulse-marco{0%,100%{opacity:1}50%{opacity:.6}}
+.marco-urgent{animation:pulse-marco 1.2s infinite}
+/* Botão relatório */
+.rel-btn{display:inline-flex;align-items:center;gap:6px;background:var(--navy);color:#fff;border:none;border-radius:7px;padding:6px 14px;font-size:11px;font-weight:700;cursor:pointer;transition:.15s}
+.rel-btn:hover{background:var(--teal)}
+
 </style>
 </head>
 <body>
@@ -267,6 +310,13 @@ tr:hover td{background:#eef3ff!important}
       <div class="hdr-badge today" id="hdr-week">S027</div>
       <div class="hdr-badge today" id="hdr-date"></div>
       <div class="hdr-badge danger" id="hdr-rest" onclick="showV('restricoes')">🚨 — Rest.</div>
+      <div class="global-search-wrap" id="gsWrap">
+        <span class="global-search-icon">🔍</span>
+        <input class="global-search" id="globalSearch" type="text" placeholder="Buscar tudo..."
+          oninput="globalSearchRun(this.value)" onfocus="if(this.value)document.getElementById('globalRes').classList.add('open')"
+          onkeydown="if(event.key==='Escape'){this.value='';globalSearchClose()}">
+        <div class="global-results" id="globalRes"></div>
+      </div>
       <button id="driveBtn" onclick="driveToggle()"
         style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:16px;padding:4px 13px;font-size:10.5px;font-weight:600;cursor:pointer;white-space:nowrap">
         ☁ Conectar Drive
@@ -280,6 +330,7 @@ tr:hover td{background:#eef3ff!important}
     <button class="nav-tab" onclick="showV('wla6')">🗓️ 6 Semanas</button>
     <button class="nav-tab" onclick="showV('restricoes')">🚨 Restrições<span class="nav-badge" id="nb-rest">0</span></button>
     <button class="nav-tab" onclick="showV('rundown')">📋 Rundown</button>
+    <button class="nav-tab" onclick="showV('responsavel')">👤 Responsáveis</button>
     <button class="nav-tab" onclick="showV('kpi')">📊 KPI Semanal</button>
   </nav>
 </header>
@@ -290,10 +341,12 @@ tr:hover td{background:#eef3ff!important}
   <div class="view" id="view-wla6"></div>
   <div class="view" id="view-restricoes"></div>
   <div class="view" id="view-rundown"></div>
+  <div class="view" id="view-responsavel"></div>
   <div class="view" id="view-kpi"></div>
 </div>
 
 <script>
+
 // ══════════════════════════════════════════════════════════════════
 // CONSTANTS
 // ══════════════════════════════════════════════════════════════════
@@ -461,7 +514,7 @@ function todayLine(labels) {
 }
 
 // ── VIEW ROUTER ──────────────────────────────────────────
-const VIEWS=['dashboard','curvas','wla6','restricoes','rundown','kpi'];
+const VIEWS=['dashboard','curvas','wla6','restricoes','rundown','responsavel','kpi'];
 let _built={};
 function showV(v){
   document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
@@ -475,6 +528,7 @@ function buildView(v){
   else if(v==='wla6') buildWla6();
   else if(v==='restricoes') buildRestricoes();
   else if(v==='rundown') buildRundown();
+  else if(v==='responsavel') buildResponsavel();
   else if(v==='kpi') buildKpiView();
 }
 function rebuildAll(){
@@ -494,6 +548,7 @@ function updateBadges(){
   const w=K_WEEKS.find(x=>x.num===CW);
   if(w) document.getElementById('hdr-week').textContent=`S${String(CW).padStart(3,'0')} (${w.days[0].slice(5).replace('-','/')}→${w.days[6].slice(5).replace('-','/')})`;
   document.getElementById('hdr-date').textContent=new Date().toLocaleDateString('pt-BR');
+  if(typeof updateFab!=='undefined') updateFab();
 }
 
 // ══════════════════════════════════════════════════════════
@@ -543,9 +598,14 @@ function buildDashboard(){
       <div class="kpi-sub">clique para ver</div>
     </div>
     <div class="kpi" style="border-left-color:var(--teal)">
-      <div class="kpi-lbl">Marco Contratual</div>
-      <div class="kpi-val" style="color:var(--teal)" id="dash-marco-dias">—</div>
-      <div class="kpi-sub">17/jun/2026</div>
+      <div class="kpi-lbl">⏱ Marco Contratual</div>
+      <div class="kpi-val" style="color:var(--teal);font-size:17px;font-family:monospace;font-weight:900" id="dash-marco-dias">—</div>
+      <div class="kpi-sub">17 jun 2026</div>
+    </div>
+    <div class="kpi" id="dash-tend-card" style="border-left-color:var(--green);cursor:pointer" onclick="showV('rundown')">
+      <div class="kpi-lbl">📈 Tendência Semanal</div>
+      <div class="kpi-val" id="dash-tend-val" style="font-size:18px">—</div>
+      <div class="kpi-sub">vs semana anterior</div>
     </div>
   </div>
 
@@ -574,14 +634,14 @@ function buildDashboard(){
       </table>
     </div>
   </div>
-  <div class="footer">Criado por Anderson Souza · <a href="https://wa.me/5521996413839">📱 (21) 99641-3839</a> · <a href="mailto:andersonjhonathan@gmail.com">andersonjhonathan@gmail.com</a> · Rev. 5.2 · ${new Date().toLocaleDateString('pt-BR')}</div>
+  <div class="footer" style="display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap"><span>Criado por Anderson Souza · <a href="https://wa.me/5521996413839">📱 (21) 99641-3839</a> · <a href="mailto:andersonjhonathan@gmail.com">andersonjhonathan@gmail.com</a> · Rev. 5.2 · ${new Date().toLocaleDateString('pt-BR')}</span><button class="rel-btn" onclick="abrirRelatorio()">📄 Relatório Semanal PDF</button></div>
   `;
 
-  // Marco days
-  const now=new Date(); now.setHours(0,0,0,0);
-  const dias=Math.round((K_MARCO_FIM-now)/(1000*60*60*24));
-  const el=document.getElementById('dash-marco-dias');
-  if(el){ el.textContent=dias>0?`${dias}d`:'VENCIDO'; el.style.color=dias>30?'var(--teal)':dias>7?'var(--yellow)':'var(--red)'; }
+  startMarcoCountdown();
+  const tend=calcTendencia();
+  const tEl=document.getElementById('dash-tend-val'),tCard=document.getElementById('dash-tend-card');
+  if(tEl){tEl.textContent=tend.label;tEl.style.color=tend.color;}
+  if(tCard) tCard.style.borderLeftColor=tend.color;
 
   // Bar chart
   mkChart('ch-disc-bar',{
@@ -961,203 +1021,10 @@ function buildRestricoes(){
   </div>
   <div class="kpi-row" id="rest-kpis"></div>
   <div id="rest-vencido-banner" style="display:none"></div>
-
-  <!-- GRÁFICOS -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px" id="rest-charts-wrap">
-    <div class="card">
-      <div class="card-hdr">
-        <div class="card-title">📊 Status por Disciplina</div>
-        <div class="card-info">ⓘ Filtros aplicados</div>
-      </div>
-      <div style="position:relative;height:240px"><canvas id="rest-ch-disc"></canvas></div>
-    </div>
-    <div class="card">
-      <div class="card-hdr">
-        <div class="card-title">🍩 Distribuição por Status</div>
-        <div class="card-info">ⓘ Filtros aplicados</div>
-      </div>
-      <div style="position:relative;height:240px"><canvas id="rest-ch-status"></canvas></div>
-    </div>
-  </div>
-
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px" id="rest-charts-wrap"><div class="card"><div class="card-hdr"><div class="card-title">📊 Status por Disciplina</div><div class="card-info">ⓘ Filtros aplicados</div></div><div style="position:relative;height:240px"><canvas id="rest-ch-disc"></canvas></div></div><div class="card"><div class="card-hdr"><div class="card-title">🍩 Distribuição por Status</div><div class="card-info">ⓘ Filtros aplicados</div></div><div style="position:relative;height:240px"><canvas id="rest-ch-status"></canvas></div></div></div>
   <div class="rest-grid" id="rest-grid"></div>
   <div class="footer">Criado por Anderson Souza · Rev. 5.2</div>`;
   renderRestricoes();
-}
-
-// ══════════════════════════════════════════════════════════
-// GRÁFICOS DAS RESTRIÇÕES — reagem aos filtros
-// ══════════════════════════════════════════════════════════
-let _restCharts = {};
-
-function renderRestChart(pends) {
-  // Destruir charts anteriores
-  Object.values(_restCharts).forEach(c => { try { c.destroy(); } catch{} });
-  _restCharts = {};
-
-  // Ocultar área de gráficos se não houver dados
-  const wrap = document.getElementById('rest-charts-wrap');
-  if (wrap) wrap.style.display = pends.length === 0 ? 'none' : 'grid';
-  if (pends.length === 0) return;
-
-  // ── Dados: agrupar por disciplina ──────────────────────
-  const discMap = {};
-  pends.forEach(p => {
-    const d = p.disc || 'Geral';
-    if (!discMap[d]) discMap[d] = { aberta: 0, andamento: 0, concluida: 0, vencida: 0, total: 0 };
-    discMap[d].total++;
-    if (_isVencido(p))       discMap[d].vencida++;
-    else if (p.status === 'aberta')    discMap[d].aberta++;
-    else if (p.status === 'andamento') discMap[d].andamento++;
-    else if (p.status === 'concluida') discMap[d].concluida++;
-  });
-
-  // Ordenar disciplinas por total desc
-  const discs = Object.entries(discMap).sort((a,b) => b[1].total - a[1].total);
-  const discLabels = discs.map(([d]) => d.length > 16 ? d.slice(0,15) + '…' : d);
-
-  // ── GRÁFICO 1: Barras empilhadas por disciplina ────────
-  const ch1 = document.getElementById('rest-ch-disc');
-  if (ch1) {
-    _restCharts.disc = new Chart(ch1.getContext('2d'), {
-      type: 'bar',
-      data: {
-        labels: discLabels,
-        datasets: [
-          {
-            label: '🔥 Vencidas',
-            data: discs.map(([,v]) => v.vencida),
-            backgroundColor: 'rgba(220,38,38,.85)',
-            borderRadius: 3,
-          },
-          {
-            label: '🔴 Abertas',
-            data: discs.map(([,v]) => v.aberta),
-            backgroundColor: 'rgba(200,16,46,.65)',
-            borderRadius: 3,
-          },
-          {
-            label: '🟡 Em andamento',
-            data: discs.map(([,v]) => v.andamento),
-            backgroundColor: 'rgba(217,119,6,.75)',
-            borderRadius: 3,
-          },
-          {
-            label: '🟢 Concluídas',
-            data: discs.map(([,v]) => v.concluida),
-            backgroundColor: 'rgba(5,150,105,.7)',
-            borderRadius: 3,
-          },
-        ],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        indexAxis: discs.length > 5 ? 'y' : 'x',
-        plugins: {
-          legend: { position: 'bottom', labels: { font: { size: 10 }, boxWidth: 12, padding: 8 } },
-          tooltip: {
-            mode: 'index', intersect: false,
-            callbacks: {
-              footer: items => {
-                const total = items.reduce((s, i) => s + i.raw, 0);
-                return `Total: ${total}`;
-              }
-            }
-          }
-        },
-        scales: {
-          x: { stacked: true, grid: { display: false }, ticks: { font: { size: 9 } } },
-          y: { stacked: true, grid: { color: '#F0F3FA' }, ticks: { font: { size: 9 } } }
-        }
-      }
-    });
-  }
-
-  // ── GRÁFICO 2: Rosca por status ────────────────────────
-  const nAberta    = pends.filter(p => p.status === 'aberta' && !_isVencido(p)).length;
-  const nAndamento = pends.filter(p => p.status === 'andamento' && !_isVencido(p)).length;
-  const nConcluida = pends.filter(p => p.status === 'concluida').length;
-  const nVencida   = pends.filter(p => _isVencido(p)).length;
-
-  const statusData   = [nVencida, nAberta, nAndamento, nConcluida].filter(v => v > 0);
-  const statusLabels2 = [];
-  const statusColors2 = [];
-  const allStatus = [
-    { label: 'Vencidas', val: nVencida,   color: '#DC2626' },
-    { label: 'Abertas',  val: nAberta,    color: '#C8102E' },
-    { label: 'Em andamento', val: nAndamento, color: '#D97706' },
-    { label: 'Concluídas',   val: nConcluida,  color: '#059669' },
-  ];
-  allStatus.forEach(s => { if (s.val > 0) { statusLabels2.push(s.label); statusColors2.push(s.color); } });
-
-  const ch2 = document.getElementById('rest-ch-status');
-  if (ch2) {
-    _restCharts.status = new Chart(ch2.getContext('2d'), {
-      type: 'doughnut',
-      data: {
-        labels: statusLabels2,
-        datasets: [{
-          data: statusData,
-          backgroundColor: statusColors2,
-          borderWidth: 3,
-          borderColor: '#fff',
-          hoverOffset: 8,
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        cutout: '65%',
-        plugins: {
-          legend: {
-            position: 'right',
-            labels: { font: { size: 10.5 }, boxWidth: 13, padding: 10,
-              generateLabels: chart => {
-                const ds = chart.data.datasets[0];
-                return chart.data.labels.map((lbl, i) => ({
-                  text: `${lbl}  ${ds.data[i]}`,
-                  fillStyle: ds.backgroundColor[i],
-                  strokeStyle: '#fff',
-                  lineWidth: 2,
-                  index: i,
-                }));
-              }
-            }
-          },
-          tooltip: {
-            callbacks: {
-              label: ctx => {
-                const total = ctx.dataset.data.reduce((a,b) => a+b, 0);
-                const pct = total > 0 ? Math.round(ctx.raw / total * 100) : 0;
-                return ` ${ctx.label}: ${ctx.raw} (${pct}%)`;
-              }
-            }
-          }
-        }
-      },
-      plugins: [{
-        // Texto central com total
-        id: 'centerText',
-        afterDraw(chart) {
-          const { ctx, chartArea: { width, height, top, left } } = chart;
-          const total = chart.data.datasets[0].data.reduce((a,b) => a+b, 0);
-          ctx.save();
-          const cx = left + width / 2 - (chart.legend?.width || 0) / 2;
-          const cy = top + height / 2;
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.font = 'bold 22px Segoe UI';
-          ctx.fillStyle = '#182554';
-          ctx.fillText(total, cx, cy - 8);
-          ctx.font = '10px Segoe UI';
-          ctx.fillStyle = '#798189';
-          ctx.fillText('pendências', cx, cy + 10);
-          ctx.restore();
-        }
-      }]
-    });
-  }
 }
 
 function setRestOrigem(origem){
@@ -1242,7 +1109,6 @@ function renderRestricoes(){
     }
   }
 
-  // ── GRÁFICOS (reagem aos filtros) ─────────────────────
   renderRestChart(pends);
 
   // Render cards
@@ -1885,7 +1751,7 @@ function kSetVal(disc,weekNum,arr,di,val){
   kState.weeks[weekNum].disc[disc][arr][di]=parseFloat(val)||0;
   kSave();
   kRenderAll();
-  _built.dashboard=0; _built.curvas=0; _built.wla6=0; _built.restricoes=0; _built.rundown=0;
+  _built.dashboard=0; _built.curvas=0; _built.wla6=0; _built.restricoes=0; _built.rundown=0; _built.responsavel=0;
 }
 function kRenderAcum(){
   const tbody=document.getElementById('k-acumBody'); if(!tbody) return;
@@ -2284,6 +2150,7 @@ document.addEventListener('visibilitychange',()=>{
 document.addEventListener('DOMContentLoaded',()=>{
   updateBadges();
   showV('dashboard');
+  setTimeout(()=>{ checkNotifications(); updateFab(); }, 1500);
 });
 window.addEventListener('keydown',e=>{
   if(e.key==='Escape') { /* nada a fechar */ }
@@ -2294,6 +2161,413 @@ window.addEventListener('keydown',e=>{
     else { try{localStorage.setItem('kpi_v4',JSON.stringify(kState));}catch(e){} }
   }
 });
+
+// ══════════════════════════════════════════════════════════
+// BUSCA GLOBAL
+// ══════════════════════════════════════════════════════════
+function globalSearchRun(q){
+  const res=document.getElementById('globalRes');
+  if(!q||q.trim().length<2){globalSearchClose();return;}
+  const term=q.trim().toLowerCase();
+  const hits=[];
+  (kState.pends||[]).forEach(p=>{
+    const txt=((p.text||'')+(p.disc||'')+(p.resp||'')).toLowerCase();
+    if(txt.includes(term)){
+      const v=_isVencido(p);
+      const sc=v?'#EA580C':p.status==='aberta'?'#EF4444':p.status==='andamento'?'#EAB308':'#22C55E';
+      const sl=v?'Vencida':p.status==='aberta'?'Aberta':p.status==='andamento'?'Em andamento':'Concluída';
+      hits.push({icon:'🚨',tag:p.disc||'Geral',tagBg:'#dde9ff',tagClr:'var(--navy)',txt:(p.text||'').slice(0,50),badge:sl,badgeClr:sc,action:"showV('restricoes')"});
+    }
+  });
+  K_DISCS.forEach(d=>{
+    if(d.name.toLowerCase().includes(term)){
+      const a=discAcum(d.name),pct=d.qt+d.ql>0?Math.round(a.total/(d.qt+d.ql)*100):0;
+      hits.push({icon:'📊',tag:'KPI',tagBg:'#dde9ff',tagClr:'var(--navy)',txt:d.name+' — '+pct+'% concluído',badge:pct+'%',badgeClr:pct>=90?'#22C55E':pct>=50?'#EAB308':'#EF4444',action:"showV('kpi')"});
+    }
+  });
+  const resps=[...new Set((kState.pends||[]).map(p=>p.resp).filter(Boolean))];
+  resps.forEach(r=>{
+    if(r.toLowerCase().includes(term)){
+      const n=(kState.pends||[]).filter(p=>p.resp===r).length;
+      hits.push({icon:'👤',tag:'Responsável',tagBg:'#dcfce7',tagClr:'#166534',txt:r+' — '+n+' pendência(s)',badge:n,badgeClr:'var(--navy)',action:"showV('responsavel')"});
+    }
+  });
+  if(!res)return;
+  res.innerHTML=hits.length===0
+    ?'<div class="gr-empty">Nenhum resultado</div>'
+    :hits.slice(0,10).map(h=>'<div class="gr-item" onclick="'+h.action+';globalSearchClose()">'
+      +'<span style="font-size:16px">'+h.icon+'</span>'
+      +'<span class="gr-tag" style="background:'+h.tagBg+';color:'+h.tagClr+'">'+h.tag+'</span>'
+      +'<span class="gr-item-text">'+h.txt+'</span>'
+      +'<span class="gr-tag" style="background:'+h.badgeClr+'22;color:'+h.badgeClr+'">'+h.badge+'</span>'
+      +'</div>').join('')
+    +(hits.length>10?'<div class="gr-empty">+'+(hits.length-10)+' mais resultados...</div>':'');
+  res.classList.add('open');
+}
+function globalSearchClose(){document.getElementById('globalRes')?.classList.remove('open');}
+document.addEventListener('click',e=>{if(!document.getElementById('gsWrap')?.contains(e.target))globalSearchClose();});
+
+// ══════════════════════════════════════════════════════════
+// FAB — RESUMO RÁPIDO
+// ══════════════════════════════════════════════════════════
+function updateFab(){
+  const v=(kState.pends||[]).filter(p=>_isVencido(p)).length;
+  const b=document.getElementById('fab-badge');
+  if(b){b.textContent=v;b.style.display=v>0?'block':'none';}
+}
+function openResumo(){
+  const modal=document.getElementById('modal-resumo');
+  const content=document.getElementById('resumo-content');
+  const dateEl=document.getElementById('resumo-date');
+  if(!modal||!content)return;
+  dateEl.textContent=new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'});
+  const now=new Date();now.setHours(0,0,0,0);
+  const totGlobal=K_DISCS.reduce((s,d)=>s+(d.qt+d.ql),0);
+  let realGlobal=0;K_DISCS.forEach(d=>{realGlobal+=discAcum(d.name).total;});
+  const pctGlobal=totGlobal>0?Math.round(realGlobal/totGlobal*100):0;
+  const progHoje=weekTotal(CW,'prog'),realHoje=weekTotal(CW,'real');
+  const pctHoje=progHoje>0?Math.round(realHoje/progHoje*100):0;
+  const abertas=(kState.pends||[]).filter(p=>p.status==='aberta'&&(p.origem||'hc2')==='hc2').length;
+  const vencidas=(kState.pends||[]).filter(p=>_isVencido(p)).length;
+  const diasMarco=Math.round((new Date('2026-06-17')-now)/(1000*60*60*24));
+  const semanas=K_WEEKS.filter(w=>weekTotal(w.num,'real')>0).length;
+  const cc=(v,g,w)=>v>=g?'#22C55E':v>=w?'#EAB308':'#EF4444';
+  content.innerHTML=
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">'
+    +'<div style="background:#EFF6FF;border-radius:10px;padding:13px;border-left:4px solid var(--navy)">'
+    +'<div style="font-size:9px;font-weight:800;color:var(--navy);text-transform:uppercase">Progresso Geral</div>'
+    +'<div style="font-size:28px;font-weight:900;color:var(--navy);margin-top:4px">'+pctGlobal+'%</div>'
+    +'<div style="font-size:10px;color:var(--g2);margin-top:2px">'+Nf(realGlobal)+' / '+Nf(totGlobal)+' itens</div>'
+    +'<div style="height:5px;background:#ddd;border-radius:3px;margin-top:6px;overflow:hidden"><div style="width:'+pctGlobal+'%;height:5px;background:var(--navy);border-radius:3px"></div></div></div>'
+    +'<div style="background:'+(pctHoje>=90?'#F0FDF4':pctHoje>=60?'#FEFCE8':'#FEF2F2')+';border-radius:10px;padding:13px;border-left:4px solid '+cc(pctHoje,90,60)+'">'
+    +'<div style="font-size:9px;font-weight:800;color:'+cc(pctHoje,90,60)+';text-transform:uppercase">Semana S'+String(CW).padStart(3,'0')+'</div>'
+    +'<div style="font-size:28px;font-weight:900;color:'+cc(pctHoje,90,60)+';margin-top:4px">'+pctHoje+'%</div>'
+    +'<div style="font-size:10px;color:var(--g2);margin-top:2px">'+Nf(realHoje)+' real. / '+Nf(progHoje)+' prog.</div>'
+    +'<div style="height:5px;background:#ddd;border-radius:3px;margin-top:6px;overflow:hidden"><div style="width:'+Math.min(pctHoje,100)+'%;height:5px;background:'+cc(pctHoje,90,60)+';border-radius:3px"></div></div></div>'
+    +'<div style="background:'+(vencidas>0?'#FFF5F5':'#F0FDF4')+';border-radius:10px;padding:13px;border-left:4px solid '+(vencidas>0?'#EA580C':'#22C55E')+';cursor:pointer" onclick="closeResumo();showV(\'restricoes\')">'
+    +'<div style="font-size:9px;font-weight:800;color:'+(vencidas>0?'#EA580C':'#22C55E')+';text-transform:uppercase">'+(vencidas>0?'Vencidas':'Restrições')+'</div>'
+    +'<div style="font-size:28px;font-weight:900;color:'+(vencidas>0?'#EA580C':'#22C55E')+';margin-top:4px">'+(vencidas>0?vencidas:abertas)+'</div>'
+    +'<div style="font-size:10px;color:var(--g2);margin-top:2px">'+(vencidas>0?'vencidas':abertas+' abertas')+' · clique para ver</div></div>'
+    +'<div style="background:'+(diasMarco<=7?'#FFF5F5':diasMarco<=30?'#FEFCE8':'#EFF6FF')+';border-radius:10px;padding:13px;border-left:4px solid '+(diasMarco<=7?'#EF4444':diasMarco<=30?'#EAB308':'var(--teal)')+'">'
+    +'<div style="font-size:9px;font-weight:800;color:'+(diasMarco<=7?'#EF4444':diasMarco<=30?'#EAB308':'var(--teal)')+';text-transform:uppercase">Marco Contratual</div>'
+    +'<div style="font-size:28px;font-weight:900;color:'+(diasMarco<=7?'#EF4444':diasMarco<=30?'#EAB308':'var(--teal)')+';margin-top:4px">'+diasMarco+'d</div>'
+    +'<div style="font-size:10px;color:var(--g2);margin-top:2px">17 jun 2026 · '+semanas+' sem. com dados</div></div>'
+    +'</div>'
+    +'<div style="font-size:11px;color:var(--g2);text-align:center;border-top:1px solid var(--bdr);padding-top:10px">'
+    +'Atualizado: '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})
+    +' &nbsp;·&nbsp; <a href="#" onclick="event.preventDefault();closeResumo();showV(\'dashboard\')" style="color:var(--navy);font-weight:700">Ver Dashboard →</a></div>';
+  modal.classList.add('open');
+}
+function closeResumo(){document.getElementById('modal-resumo')?.classList.remove('open');}
+
+// ══════════════════════════════════════════════════════════
+// NOTIFICAÇÕES
+// ══════════════════════════════════════════════════════════
+function checkNotifications(){
+  const v=(kState.pends||[]).filter(p=>_isVencido(p));
+  if(!v.length||!('Notification' in window))return;
+  const send=()=>{
+    try{
+      const n=new Notification('🔥 KPI Inspeção — Restrições Vencidas',{body:v.length+' restrição(ões) com prazo vencido.',tag:'kpi-vencidas',requireInteraction:true});
+      n.onclick=()=>{window.focus();showV('restricoes');n.close();};
+    }catch(e){}
+  };
+  if(Notification.permission==='granted')send();
+  else if(Notification.permission!=='denied')Notification.requestPermission().then(p=>{if(p==='granted')send();});
+}
+
+// ══════════════════════════════════════════════════════════
+// TENDÊNCIA SEMANAL
+// ══════════════════════════════════════════════════════════
+function calcTendencia(){
+  const cwIdx=K_WEEKS.findIndex(w=>w.num===CW);
+  if(cwIdx<=0)return{label:'Primeira semana',color:'var(--navy)'};
+  const prev=K_WEEKS[cwIdx-1];
+  const curr=weekTotal(CW,'real'),prevR=weekTotal(prev.num,'real');
+  if(prevR===0)return{label:'↑ Nova semana',color:'var(--green)'};
+  const delta=curr-prevR,pct=Math.round(Math.abs(delta)/prevR*100);
+  return{label:delta>0?'↑ +'+pct+'% vs S'+prev.num:delta<0?'↓ -'+pct+'% vs S'+prev.num:'= Igual a S'+prev.num,color:delta>0?'var(--green)':delta<0?'var(--red)':'var(--g2)'};
+}
+
+// ══════════════════════════════════════════════════════════
+// CONTADOR REGRESSIVO DO MARCO
+// ══════════════════════════════════════════════════════════
+function startMarcoCountdown(){
+  function tick(){
+    const el=document.getElementById('dash-marco-dias');if(!el)return;
+    const diff=new Date('2026-06-17T23:59:59')-new Date();
+    if(diff<=0){el.textContent='VENCIDO';el.style.color='var(--red)';return;}
+    const d=Math.floor(diff/(1000*60*60*24));
+    const h=Math.floor((diff%(1000*60*60*24))/(1000*60*60));
+    const m=Math.floor((diff%(1000*60*60))/(1000*60));
+    const s=Math.floor((diff%(1000*60))/1000);
+    el.style.color=d<=7?'var(--red)':d<=30?'var(--yellow)':'var(--teal)';
+    el.textContent=d>1?d+'d '+String(h).padStart(2,'0')+'h'+String(m).padStart(2,'0')+'m':String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+  }
+  tick();setInterval(tick,1000);
+}
+
+// ══════════════════════════════════════════════════════════
+// GRÁFICOS RESTRIÇÕES
+// ══════════════════════════════════════════════════════════
+let _restCharts={};
+function renderRestChart(pends){
+  Object.values(_restCharts).forEach(c=>{try{c.destroy();}catch{}});
+  _restCharts={};
+  const wrap=document.getElementById('rest-charts-wrap');
+  if(wrap)wrap.style.display=pends.length===0?'none':'grid';
+  if(!pends.length)return;
+  const dm={};
+  pends.forEach(p=>{
+    const d=p.disc||'Geral';
+    if(!dm[d])dm[d]={a:0,an:0,c:0,v:0,t:0};
+    dm[d].t++;
+    if(_isVencido(p))dm[d].v++;
+    else if(p.status==='aberta')dm[d].a++;
+    else if(p.status==='andamento')dm[d].an++;
+    else if(p.status==='concluida')dm[d].c++;
+  });
+  const discs=Object.entries(dm).sort((a,b)=>b[1].t-a[1].t);
+  const lbl=discs.map(([d])=>d.length>16?d.slice(0,15)+'\u2026':d);
+  const ch1=document.getElementById('rest-ch-disc');
+  if(ch1)_restCharts.disc=new Chart(ch1.getContext('2d'),{
+    type:'bar',
+    data:{labels:lbl,datasets:[
+      {label:'Vencidas',data:discs.map(([,v])=>v.v),backgroundColor:'rgba(234,88,12,.90)',borderRadius:3},
+      {label:'Abertas',data:discs.map(([,v])=>v.a),backgroundColor:'rgba(239,68,68,.70)',borderRadius:3},
+      {label:'Em andamento',data:discs.map(([,v])=>v.an),backgroundColor:'rgba(234,179,8,.80)',borderRadius:3},
+      {label:'Concluídas',data:discs.map(([,v])=>v.c),backgroundColor:'rgba(34,197,94,.75)',borderRadius:3},
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,indexAxis:discs.length>5?'y':'x',
+      plugins:{legend:{position:'bottom',labels:{font:{size:10},boxWidth:12}},tooltip:{mode:'index',intersect:false}},
+      scales:{x:{stacked:true,grid:{display:false},ticks:{font:{size:9}}},y:{stacked:true,grid:{color:'#F0F3FA'},ticks:{font:{size:9}}}}}
+  });
+  const nV=pends.filter(p=>_isVencido(p)).length;
+  const nA=pends.filter(p=>p.status==='aberta'&&!_isVencido(p)).length;
+  const nAn=pends.filter(p=>p.status==='andamento'&&!_isVencido(p)).length;
+  const nC=pends.filter(p=>p.status==='concluida').length;
+  const st=[{l:'Vencidas',v:nV,c:'#EA580C'},{l:'Abertas',v:nA,c:'#EF4444'},{l:'Em andamento',v:nAn,c:'#EAB308'},{l:'Concluídas',v:nC,c:'#22C55E'}].filter(s=>s.v>0);
+  const ch2=document.getElementById('rest-ch-status');
+  if(ch2)_restCharts.status=new Chart(ch2.getContext('2d'),{
+    type:'doughnut',
+    data:{labels:st.map(s=>s.l),datasets:[{data:st.map(s=>s.v),backgroundColor:st.map(s=>s.c),borderWidth:3,borderColor:'#fff',hoverOffset:8}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'65%',
+      plugins:{legend:{position:'right',labels:{font:{size:10.5},boxWidth:13,padding:10,
+        generateLabels:chart=>{const ds=chart.data.datasets[0];return chart.data.labels.map((lb,i)=>({text:lb+'  '+ds.data[i],fillStyle:ds.backgroundColor[i],strokeStyle:'#fff',lineWidth:2,index:i}));}}},
+        tooltip:{callbacks:{label:ctx=>{const t=ctx.dataset.data.reduce((a,b)=>a+b,0),p=t>0?Math.round(ctx.raw/t*100):0;return ' '+ctx.label+': '+ctx.raw+' ('+p+'%)';}}}
+      }},
+    plugins:[{id:'ct',afterDraw(chart){
+      const {ctx,chartArea:{width,height,top,left}}=chart;
+      const total=chart.data.datasets[0].data.reduce((a,b)=>a+b,0);
+      ctx.save();
+      const cx=left+width/2-(chart.legend?.width||0)/2,cy=top+height/2;
+      ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.font='bold 22px Segoe UI';ctx.fillStyle='#182554';ctx.fillText(total,cx,cy-8);
+      ctx.font='10px Segoe UI';ctx.fillStyle='#798189';ctx.fillText('pendências',cx,cy+10);
+      ctx.restore();
+    }}]
+  });
+}
+
+// ══════════════════════════════════════════════════════════
+// VIEW: RESPONSÁVEIS
+// ══════════════════════════════════════════════════════════
+function buildResponsavel(){
+  const c=document.getElementById('view-responsavel');if(!c)return;
+  const rm={};
+  (kState.pends||[]).forEach(p=>{
+    (p.resp||'').split('/').map(n=>n.trim()).filter(Boolean).forEach(n=>{
+      if(!rm[n])rm[n]={pends:[],v:0,a:0,an:0,co:0};
+      rm[n].pends.push(p);
+      if(_isVencido(p))rm[n].v++;
+      else if(p.status==='aberta')rm[n].a++;
+      else if(p.status==='andamento')rm[n].an++;
+      else if(p.status==='concluida')rm[n].co++;
+    });
+  });
+  const sorted=Object.entries(rm).sort((a,b)=>(b[1].v*4+b[1].a*2+b[1].an)-(a[1].v*4+a[1].a*2+a[1].an));
+  const semResp=(kState.pends||[]).filter(p=>!p.resp).length;
+  c.innerHTML=
+    '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">'
+    +'<h2 style="font-size:13px;font-weight:800;color:var(--navy)">👤 Desempenho por Responsável</h2>'
+    +'<div style="font-size:10.5px;color:var(--g2)">'+sorted.length+' responsável(is) · '+semResp+' sem responsável</div></div>'
+    +'<div class="kpi-row" style="margin-bottom:14px">'
+    +'<div class="kpi" style="border-left-color:var(--navy)"><div class="kpi-lbl">Responsáveis</div><div class="kpi-val" style="color:var(--navy)">'+sorted.length+'</div></div>'
+    +'<div class="kpi" style="border-left-color:#EA580C"><div class="kpi-lbl">Com vencidas</div><div class="kpi-val" style="color:#EA580C">'+sorted.filter(([,v])=>v.v>0).length+'</div></div>'
+    +'<div class="kpi" style="border-left-color:#EF4444"><div class="kpi-lbl">Com abertas</div><div class="kpi-val" style="color:#EF4444">'+sorted.filter(([,v])=>v.a>0).length+'</div></div>'
+    +'<div class="kpi" style="border-left-color:#22C55E"><div class="kpi-lbl">Só concluídas</div><div class="kpi-val" style="color:#22C55E">'+sorted.filter(([,v])=>v.v===0&&v.a===0&&v.an===0&&v.co>0).length+'</div></div>'
+    +'</div>'
+    +'<div class="resp-grid">'
+    +sorted.map(([nome,v])=>{
+      const sc=v.v>0?'#EA580C':v.a>0?'#EF4444':v.an>0?'#EAB308':'#22C55E';
+      const init=nome.split(' ').map(p=>p[0]).join('').slice(0,2).toUpperCase();
+      const bg=v.v>0?'#EA580C,#DC2626':v.a>0?'#EF4444,#C8102E':v.an>0?'#EAB308,#D97706':'#22C55E,#059669';
+      return '<div class="resp-card" style="border-color:'+sc+'">'
+        +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">'
+        +'<div class="resp-avatar" style="background:linear-gradient(135deg,'+bg+')">'+init+'</div>'
+        +'<div><div class="resp-name">'+nome+'</div><div class="resp-sub">'+v.pends.length+' pendência(s)</div></div></div>'
+        +'<div class="resp-pills">'
+        +(v.v>0?'<span class="resp-pill" style="background:#FEF0EC;color:#EA580C">🔥 '+v.v+' vencida(s)</span>':'')
+        +(v.a>0?'<span class="resp-pill" style="background:#FEE2E2;color:#EF4444">🔴 '+v.a+' aberta(s)</span>':'')
+        +(v.an>0?'<span class="resp-pill" style="background:#FEF3C7;color:#D97706">🟡 '+v.an+' em andamento</span>':'')
+        +(v.co>0?'<span class="resp-pill" style="background:#D1FAE5;color:#059669">🟢 '+v.co+' concluída(s)</span>':'')
+        +'</div>'
+        +v.pends.slice(0,2).map(p=>'<div style="margin-top:7px;font-size:10.5px;color:var(--grey);padding:5px 8px;background:var(--bg);border-radius:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+(p.text||'')+'">'
+          +(p.disc?'<span style="font-size:9px;background:#dde9ff;color:var(--navy);padding:1px 5px;border-radius:3px;margin-right:4px">'+p.disc+'</span>':'')
+          +(p.text||'Sem descrição').slice(0,45)+(p.text&&p.text.length>45?'\u2026':'')+'</div>').join('')
+        +(v.pends.length>2?'<div style="font-size:10px;color:var(--g2);margin-top:5px;text-align:right">+'+(v.pends.length-2)+' mais</div>':'')
+        +'</div>';
+    }).join('')
+    +(sorted.length===0?'<div style="grid-column:1/-1;padding:40px;text-align:center;color:var(--g2)">Nenhuma pendência com responsável definido.</div>':'')
+    +'</div>'
+    +'<div style="background:var(--card);border-radius:var(--r);padding:13px 16px;box-shadow:var(--sh);margin-bottom:12px">'
+    +'<div class="card-hdr"><div class="card-title">📊 Distribuição por Responsável</div></div>'
+    +'<div style="position:relative;height:280px"><canvas id="ch-resp-bar"></canvas></div></div>'
+    +'<div class="footer">Criado por Anderson Souza · Rev. 5.2</div>';
+  if(CHARTS['ch-resp-bar']){try{CHARTS['ch-resp-bar'].destroy();}catch{}}
+  const ch=document.getElementById('ch-resp-bar');
+  if(ch)CHARTS['ch-resp-bar']=new Chart(ch.getContext('2d'),{
+    type:'bar',
+    data:{labels:sorted.slice(0,12).map(([n])=>n.length>14?n.slice(0,13)+'\u2026':n),
+      datasets:[
+        {label:'Vencidas',data:sorted.slice(0,12).map(([,v])=>v.v),backgroundColor:'rgba(234,88,12,.85)',borderRadius:3},
+        {label:'Abertas',data:sorted.slice(0,12).map(([,v])=>v.a),backgroundColor:'rgba(239,68,68,.75)',borderRadius:3},
+        {label:'Em andamento',data:sorted.slice(0,12).map(([,v])=>v.an),backgroundColor:'rgba(234,179,8,.8)',borderRadius:3},
+        {label:'Concluídas',data:sorted.slice(0,12).map(([,v])=>v.co),backgroundColor:'rgba(34,197,94,.75)',borderRadius:3},
+      ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'bottom',labels:{font:{size:10},boxWidth:12}},tooltip:{mode:'index',intersect:false}},
+      scales:{x:{stacked:true,grid:{display:false},ticks:{font:{size:9}}},y:{stacked:true,grid:{color:'#F0F3FA'},ticks:{font:{size:9}}}}}
+  });
+}
+
+// ══════════════════════════════════════════════════════════
+// RELATÓRIO SEMANAL PDF
+// ══════════════════════════════════════════════════════════
+function abrirRelatorio(){
+  const modal=document.getElementById('modal-relatorio');if(!modal)return;
+  const sel=document.getElementById('rel-week-sel');
+  if(sel&&sel.options.length===0){
+    K_WEEKS.forEach(w=>{
+      const o=document.createElement('option');
+      o.value=w.num;
+      o.textContent='S'+String(w.num).padStart(3,'0')+' \u00b7 '+w.days[0].slice(5).replace('-','/')+' \u2192 '+w.days[6].slice(5).replace('-','/');
+      if(w.num===CW)o.selected=true;
+      sel.appendChild(o);
+    });
+  }
+  modal.classList.add('open');
+}
+function gerarRelatorioSemanal(){
+  const weekNum=parseInt(document.getElementById('rel-week-sel')?.value||CW);
+  const week=K_WEEKS.find(w=>w.num===weekNum)||K_WEEKS[0];
+  const nowStr=new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'});
+  const tsStr=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  const progS=weekTotal(weekNum,'prog'),realS=weekTotal(weekNum,'real');
+  const pctS=progS>0?Math.round(realS/progS*100):0;
+  const totGlobal=K_DISCS.reduce((s,d)=>s+(d.qt+d.ql),0);
+  let realGlobal=0;K_DISCS.forEach(d=>{realGlobal+=discAcum(d.name).total;});
+  const pctGlobal=totGlobal>0?Math.round(realGlobal/totGlobal*100):0;
+  const pendAberta=(kState.pends||[]).filter(p=>p.status==='aberta'&&(p.origem||'hc2')==='hc2');
+  const pendVencida=(kState.pends||[]).filter(p=>_isVencido(p));
+  const pc=(v,g,w)=>v>=g?'#22C55E':v>=w?'#EAB308':'#EF4444';
+  const discRows=K_DISCS.filter(d=>d.qt>0||d.ql>0).map(d=>{
+    const wd=kState.weeks[weekNum]?.disc[d.name];
+    const ps=wd?((wd.prog_qt||[]).reduce((a,b)=>a+b,0)+(wd.prog_ql||[]).reduce((a,b)=>a+b,0)):0;
+    const rs=wd?((wd.real_qt||[]).reduce((a,b)=>a+b,0)+(wd.real_ql||[]).reduce((a,b)=>a+b,0)):0;
+    const p=ps>0?Math.round(rs/ps*100):null;
+    const ac=discAcum(d.name),tot=d.qt+d.ql,gp=tot>0?Math.round(ac.total/tot*100):0;
+    return '<tr><td style="padding:7px 9px;border-bottom:1px solid #E5E7EB;font-size:11px;font-weight:600">'+d.name+'</td>'
+      +'<td style="padding:7px 9px;border-bottom:1px solid #E5E7EB;text-align:center;font-size:11px">'+(ps||'—')+'</td>'
+      +'<td style="padding:7px 9px;border-bottom:1px solid #E5E7EB;text-align:center;font-size:11px;color:#059669;font-weight:700">'+(rs||'—')+'</td>'
+      +'<td style="padding:7px 9px;border-bottom:1px solid #E5E7EB;text-align:center;font-size:11px;font-weight:700;color:'+(ps>0?pc(p,90,60):'#9CA3AF')+'">'+(ps>0?(p+'%'):'—')+'</td>'
+      +'<td style="padding:7px 9px;border-bottom:1px solid #E5E7EB;text-align:center;font-size:11px">'+Nf(Math.round(ac.total))+'</td>'
+      +'<td style="padding:7px 9px;border-bottom:1px solid #E5E7EB;text-align:center;font-size:11px;font-weight:700;color:'+pc(gp,90,50)+'">'+gp+'%</td></tr>';
+  }).join('');
+  const pendRows=[...pendVencida,...pendAberta.filter(p=>!pendVencida.includes(p))].slice(0,15).map((p,i)=>{
+    const v=_isVencido(p);
+    return '<tr><td style="padding:6px 8px;border-bottom:1px solid #E5E7EB;font-size:10px;text-align:center">'+(i+1)+'</td>'
+      +'<td style="padding:6px 8px;border-bottom:1px solid #E5E7EB;font-size:10px">'+(p.disc||'Geral')+'</td>'
+      +'<td style="padding:6px 8px;border-bottom:1px solid #E5E7EB;font-size:10px;font-weight:600;color:'+(v?'#EA580C':'#EF4444')+'">'+(v?'Vencida':'Aberta')+'</td>'
+      +'<td style="padding:6px 8px;border-bottom:1px solid #E5E7EB;font-size:10px">'+(p.text||'').slice(0,60)+'</td>'
+      +'<td style="padding:6px 8px;border-bottom:1px solid #E5E7EB;font-size:10px">'+(p.resp||'—')+'</td>'
+      +'<td style="padding:6px 8px;border-bottom:1px solid #E5E7EB;font-size:10px;color:'+(v?'#EA580C':'inherit')+';font-weight:'+(v?'700':'400')+'">'+(p.prazo||'—')+'</td></tr>';
+  }).join('');
+  const doc='<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Relat\u00f3rio S'+String(weekNum).padStart(3,'0')+'</title>'
+    +'<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Segoe UI,Arial,sans-serif;color:#111;font-size:12px}@page{size:A4;margin:12mm 10mm}'
+    +'.hdr{background:linear-gradient(135deg,#182554,#00617F);color:#fff;padding:16px 20px;border-radius:8px;margin-bottom:14px}'
+    +'.hdr h1{font-size:17px;font-weight:900;margin-bottom:3px}.hdr p{font-size:10px;opacity:.75;margin-bottom:7px}'
+    +'.chip{background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.3);border-radius:12px;padding:3px 10px;font-size:9.5px;font-weight:700;display:inline-block;margin-right:5px}'
+    +'.cards{display:flex;gap:10px;margin-bottom:14px}'
+    +'.sc{flex:1;border-radius:8px;padding:11px 13px;border-left:4px solid}'
+    +'.scv{font-size:24px;font-weight:900;line-height:1}.scl{font-size:9px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;font-weight:700}.scs{font-size:10px;margin-top:3px}'
+    +'.pbar{height:5px;background:#E5E7EB;border-radius:3px;overflow:hidden;margin-top:4px}.pbf{height:5px;border-radius:3px}'
+    +'table{width:100%;border-collapse:collapse}thead tr{background:#182554}th{color:#fff;font-size:10px;font-weight:700;padding:7px 9px;text-align:left}'
+    +'tr:nth-child(even) td{background:#F9FAFB}'
+    +'.sec{margin-bottom:14px}.st{font-size:12px;font-weight:800;color:#182554;margin-bottom:8px;padding-bottom:5px;border-bottom:2px solid #182554}'
+    +'.fb{margin-top:14px;padding:9px 14px;background:#F3F4F6;border-radius:6px;display:flex;justify-content:space-between;font-size:9.5px;color:#6B7280}'
+    +'</style></head><body>'
+    +'<div class="hdr"><h1>Relat\u00f3rio Semanal de Inspe\u00e7\u00e3o</h1>'
+    +'<p>COMPLEXO BOA VENTURA \u00b7 GASLUB EPC05</p>'
+    +'<span class="chip">S'+String(weekNum).padStart(3,'0')+'</span>'
+    +'<span class="chip">'+week.days[0].slice(5).replace('-','/')+' \u2192 '+week.days[6].slice(5).replace('-','/')+'</span>'
+    +'<span class="chip">'+nowStr+' '+tsStr+'</span></div>'
+    +'<div class="cards">'
+    +'<div class="sc" style="border-color:#182554;background:#EFF6FF"><div class="scl" style="color:#182554">Progresso Geral</div><div class="scv" style="color:#182554">'+pctGlobal+'%</div><div class="scs" style="color:#6B7280">'+Nf(realGlobal)+' / '+Nf(totGlobal)+'</div><div class="pbar"><div class="pbf" style="width:'+pctGlobal+'%;background:#182554"></div></div></div>'
+    +'<div class="sc" style="border-color:'+pc(pctS,90,60)+';background:'+(pctS>=90?'#F0FDF4':pctS>=60?'#FEFCE8':'#FEF2F2')+'"><div class="scl" style="color:'+pc(pctS,90,60)+'">Semana S'+String(weekNum).padStart(3,'0')+'</div><div class="scv" style="color:'+pc(pctS,90,60)+'">'+pctS+'%</div><div class="scs" style="color:#6B7280">'+Nf(realS)+' / '+Nf(progS)+'</div><div class="pbar"><div class="pbf" style="width:'+Math.min(pctS,100)+'%;background:'+pc(pctS,90,60)+'"></div></div></div>'
+    +'<div class="sc" style="border-color:#EF4444;background:#FEF2F2"><div class="scl" style="color:#EF4444">Restri\u00e7\u00f5es</div><div class="scv" style="color:#EF4444">'+pendAberta.length+'</div><div class="scs" style="color:#EA580C">'+pendVencida.length+' vencidas</div></div>'
+    +'</div>'
+    +'<div class="sec"><div class="st">KPI por Disciplina \u2014 S'+String(weekNum).padStart(3,'0')+'</div>'
+    +'<table><thead><tr><th>Disciplina</th><th>Prog.</th><th>Realizado</th><th>% Sem.</th><th>Acum.</th><th>% Geral</th></tr></thead><tbody>'+discRows+'</tbody></table></div>'
+    +((pendAberta.length+pendVencida.length)>0?'<div class="sec"><div class="st">Restri\u00e7\u00f5es Abertas & Vencidas</div><table><thead><tr><th>#</th><th>Disc.</th><th>Status</th><th>Descri\u00e7\u00e3o</th><th>Resp.</th><th>Prazo</th></tr></thead><tbody>'+pendRows+'</tbody></table></div>':'')
+    +'<div class="fb"><span>Anderson Souza \u00b7 (21) 99641-3839</span><span>HC\u00b2 Cons\u00f3rcio \u00b7 Rev. 5.2</span></div>'
+    +'<script>window.onload=function(){window.print();};<\/script>'
+    +'</body></html>';
+  document.getElementById('modal-relatorio')?.classList.remove('open');
+  const blob=new Blob([doc],{type:'text/html;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const win=window.open(url,'_blank','width=950,height=750');
+  if(!win)alert('Permita popups para gerar o PDF.');
+  setTimeout(()=>URL.revokeObjectURL(url),60000);
+}
+
+
 </script>
+
+<!-- ⚡ FAB RESUMO RÁPIDO -->
+<button class="fab" onclick="openResumo()" title="Resumo Rápido" id="fabBtn">
+  ⚡<span class="fab-badge" id="fab-badge" style="display:none">0</span>
+</button>
+
+<!-- MODAL: RESUMO RÁPIDO -->
+<div class="modal-overlay" id="modal-resumo" onclick="if(event.target===this)closeResumo()">
+  <div class="modal-box" style="width:520px">
+    <div class="modal-hdr">
+      <h2>⚡ Resumo Rápido — <span id="resumo-date"></span></h2>
+      <button class="modal-close" onclick="closeResumo()">✕ Fechar</button>
+    </div>
+    <div id="resumo-content"></div>
+  </div>
+</div>
+
+<!-- MODAL: RELATÓRIO SEMANAL -->
+<div class="modal-overlay" id="modal-relatorio" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal-box" style="width:420px">
+    <div class="modal-hdr">
+      <h2>📄 Relatório Semanal</h2>
+      <button class="modal-close" onclick="document.getElementById('modal-relatorio').classList.remove('open')">✕</button>
+    </div>
+    <p style="font-size:11px;color:var(--g2);margin-bottom:14px">PDF completo com KPI, Curva S e Restrições da semana selecionada.</p>
+    <div style="margin-bottom:12px">
+      <label style="font-size:10px;font-weight:700;color:var(--navy);display:block;margin-bottom:4px">Semana</label>
+      <select id="rel-week-sel" class="fsel" style="width:100%"></select>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:14px">
+      <button class="rel-btn" onclick="gerarRelatorioSemanal()" style="flex:1;justify-content:center">📄 Gerar PDF</button>
+      <button class="modal-close" onclick="document.getElementById('modal-relatorio').classList.remove('open')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
