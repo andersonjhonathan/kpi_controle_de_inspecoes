@@ -634,7 +634,7 @@ function buildDashboard(){
       </table>
     </div>
   </div>
-  <div class="footer" style="display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap"><span>Criado por Anderson Souza · <a href="https://wa.me/5521996413839">📱 (21) 99641-3839</a> · <a href="mailto:andersonjhonathan@gmail.com">andersonjhonathan@gmail.com</a> · Rev. 5.2 · ${new Date().toLocaleDateString('pt-BR')}</span><button class="rel-btn" onclick="abrirRelatorio()">📄 Relatório Semanal PDF</button></div>
+  <div class="footer" style="display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap"><span>Criado por Anderson Souza · <a href="https://wa.me/5521996413839">📱 (21) 99641-3839</a> · <a href="mailto:andersonjhonathan@gmail.com">andersonjhonathan@gmail.com</a> · Rev. 5.3 · ${new Date().toLocaleDateString('pt-BR')}</span><button class="rel-btn" onclick="abrirRelatorio()">📄 Relatório Semanal PDF</button></div>
   `;
 
   startMarcoCountdown();
@@ -726,7 +726,7 @@ function buildCurvas(){
     <div class="card"><div class="card-hdr"><div class="card-title" id="curva-title1">Curva S Acumulada</div><div class="card-info">ⓘ Programado vs Realizado acumulado</div></div><div class="cw h300"><canvas id="ch-curva-s"></canvas></div></div>
     <div class="card"><div class="card-hdr"><div class="card-title" id="curva-title2">Realizado por Semana</div><div class="card-info">ⓘ Barras semanais</div></div><div class="cw h300"><canvas id="ch-curva-bar"></canvas></div></div>
   </div>
-  <div class="footer">Criado por Anderson Souza · Rev. 5.2</div>`;
+  <div class="footer">Criado por Anderson Souza · Rev. 5.3 · ${new Date().toLocaleDateString('pt-BR')}</div>`;
 
   buildCurvaDiscTabs();
   renderCurva();
@@ -908,7 +908,7 @@ function buildWla6(){
     <div class="card-hdr"><div class="card-title">📊 Programado vs Realizado — Próximas 6 Semanas</div></div>
     <div class="cw h260"><canvas id="ch-wla-bar"></canvas></div>
   </div>
-  <div class="footer">Criado por Anderson Souza · Rev. 5.2</div>`;
+  <div class="footer">Criado por Anderson Souza · Rev. 5.3 · ${new Date().toLocaleDateString('pt-BR')}</div>`;
 
   // Bar chart for 6wla
   const wlabels=wsToShow.map(w=>'S'+String(w.num).padStart(3,'0'));
@@ -966,32 +966,132 @@ function _diasAtraso(p){
 
 // ── Origem ativa das restrições: 'hc2' | 'petrobras'
 let _restOrigem = 'hc2';
+let _restOcultarConc = false;
+let _filtroReuniao   = false;
+
+// ── Visibilidade secreta de restrições ────────────────────
+// ── Toggle funções da aba Restrições ─────────────────────
+function toggleFiltroReuniao(){
+  _filtroReuniao=!_filtroReuniao;
+  if(_filtroReuniao){const fs=document.getElementById('rest-filt-status');if(fs)fs.value='';}
+  _built.restricoes=0; buildRestricoes();
+}
+function toggleFiltStatus(status){
+  const sel=document.getElementById('rest-filt-status');
+  if(!sel)return;
+  sel.value=sel.value===status?'':status;
+  if(status) _filtroReuniao=false;
+  renderRestricoes();
+}
+function toggleOcultarConc(){
+  _restOcultarConc=!_restOcultarConc;
+  _built.restricoes=0; buildRestricoes();
+}
+
+let _visibCardIdx = -1;
+
+// ── Modal edição de restrição (duplo clique na aba Restrições) ──
+let _restEditIdx   = -1;
+let _restEditStatus = 'aberta';
+let _restEditIndice = 1;
+
+function openRestCardModal(idx){
+  _restEditIdx = idx;
+  const p = (kState.pends||[])[idx];
+  if(!p) return;
+  _restEditStatus = p.status || 'aberta';
+  _restEditIndice = p.indice || 1;
+  document.getElementById('re-text').value  = p.text  || '';
+  document.getElementById('re-resp').value  = p.resp  || '';
+  document.getElementById('re-prazo').value = p.prazo || '';
+  _reHighlightStatus(_restEditStatus);
+  // Alcance só visível no modo HC²
+  const aw = document.getElementById('re-alcance-wrap');
+  if(aw) aw.style.display = _restOrigem==='hc2' ? 'block' : 'none';
+  _reHighlightIndice(_restEditIndice);
+  document.getElementById('modal-rest-edit').style.display = 'flex';
+}
+function closeRestEdit(){
+  document.getElementById('modal-rest-edit').style.display = 'none';
+}
+function reSetStatus(s){
+  _restEditStatus = s;
+  _reHighlightStatus(s);
+}
+function reSetIndice(i){
+  _restEditIndice = i;
+  _reHighlightIndice(i);
+}
+function _reHighlightStatus(s){
+  const map = {aberta:'#FEE2E2|#DC2626', andamento:'#FEF3C7|#D97706', concluida:'#D1FAE5|#059669'};
+  ['aberta','andamento','concluida'].forEach(k=>{
+    const btn = document.getElementById('re-btn-'+k);
+    if(!btn) return;
+    const [bg,cl] = k===s ? map[k].split('|') : ['var(--bg)','var(--g2)'];
+    btn.style.background  = bg;
+    btn.style.color       = cl;
+    btn.style.borderColor = k===s ? cl : 'var(--bdr)';
+  });
+}
+function _reHighlightIndice(i){
+  const bi = document.getElementById('re-btn-interno');
+  const br = document.getElementById('re-btn-reuniao');
+  if(bi){ bi.style.background=i===1?'#dde9ff':'var(--bg)'; bi.style.color=i===1?'var(--navy)':'var(--g2)'; bi.style.borderColor=i===1?'var(--navy)':'var(--bdr)'; }
+  if(br){ br.style.background=i===3?'#dcfce7':'var(--bg)'; br.style.color=i===3?'#166534':'var(--g2)'; br.style.borderColor=i===3?'#22C55E':'var(--bdr)'; }
+}
+function saveRestEdit(){
+  if(_restEditIdx < 0) return;
+  const p = (kState.pends||[])[_restEditIdx];
+  if(!p) return;
+  p.text   = document.getElementById('re-text').value.trim();
+  p.resp   = document.getElementById('re-resp').value.trim();
+  p.prazo  = document.getElementById('re-prazo').value;
+  p.status = _restEditStatus;
+  if(_restOrigem==='hc2') p.indice = _restEditIndice;
+  kSave();
+  closeRestEdit();
+  _built.restricoes=0; buildRestricoes();
+  updateBadges();
+}
+function deleteRestEdit(){
+  if(_restEditIdx < 0) return;
+  if(!confirm('Excluir esta restrição permanentemente?')) return;
+  kState.pends.splice(_restEditIdx, 1);
+  kSave();
+  closeRestEdit();
+  _built.restricoes=0; buildRestricoes();
+  if(_built.responsavel) _built.responsavel=0;
+  updateBadges();
+}
+function openVisibModal(idx){
+  if(_restOrigem==='petrobras') return; // nunca expor no modo PB
+  _visibCardIdx = idx;
+  const cur=(kState.pends[idx]?.indice)||1;
+  const l1=document.getElementById('vlbl-1');
+  const l3=document.getElementById('vlbl-3');
+  if(l1){ l1.style.background=cur===1?'#dde9ff':''; l1.style.borderColor=cur===1?'var(--navy)':'var(--bdr)'; l1.style.color=cur===1?'var(--navy)':''; }
+  if(l3){ l3.style.background=cur===3?'#dcfce7':''; l3.style.borderColor=cur===3?'#22C55E':'var(--bdr)'; l3.style.color=cur===3?'#166534':''; }
+  document.getElementById('modal-visib').style.display='flex';
+}
+function setVisibIndice(indice){
+  if(_visibCardIdx<0) return;
+  kState.pends[_visibCardIdx].indice=indice;
+  kSave(); kRenderPends();
+  document.getElementById('modal-visib').style.display='none';
+  if(_built.restricoes){_built.restricoes=0; buildRestricoes();}
+} // ocultar concluídas
 
 function buildRestricoes(){
   const c=document.getElementById('view-restricoes'); if(!c) return;
-  const nHc2 = (kState.pends||[]).filter(p=>(p.origem||'hc2')==='hc2').length;
-  const nPb  = (kState.pends||[]).filter(p=>p.origem==='petrobras').length;
+  const nHc2=(kState.pends||[]).filter(p=>(p.origem||'hc2')==='hc2').length;
+  const nPb =(kState.pends||[]).filter(p=>p.origem==='petrobras').length;
+  const isPb=_restOrigem==='petrobras';
   c.innerHTML=`
+  <!-- HEADER -->
   <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">
-    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-      <h2 style="font-size:13px;font-weight:800;color:var(--navy)">&#x1F6A8; Restri&#xE7;&#xF5;es &amp; Pend&#xEA;ncias</h2>
-      <div style="display:flex;background:var(--bg);border-radius:20px;padding:3px;border:1px solid var(--bdr);gap:2px">
-        <button id="rest-btn-hc2" onclick="setRestOrigem('hc2')"
-          style="padding:4px 14px;border-radius:16px;border:none;font-size:10.5px;font-weight:800;cursor:pointer;font-family:inherit;transition:.2s;
-          background:${_restOrigem==='hc2'?'var(--navy)':'transparent'};color:${_restOrigem==='hc2'?'#fff':'var(--g2)'}">
-          HC&#xB2; &nbsp;<span style="font-size:9px;opacity:.75">(${nHc2})</span>
-        </button>
-        <button id="rest-btn-pb" onclick="setRestOrigem('petrobras')"
-          style="padding:4px 14px;border-radius:16px;border:none;font-size:10.5px;font-weight:800;cursor:pointer;font-family:inherit;transition:.2s;
-          background:${_restOrigem==='petrobras'?'#166534':'transparent'};color:${_restOrigem==='petrobras'?'#fff':'var(--g2)'}">
-          Petrobras &nbsp;<span style="font-size:9px;opacity:.75">(${nPb})</span>
-        </button>
-      </div>
-      <div id="rest-origem-label" style="font-size:10px;font-weight:700;padding:3px 11px;border-radius:12px;
-        background:${_restOrigem==='hc2'?'#dde9ff':'#dcfce7'};color:${_restOrigem==='hc2'?'var(--navy)':'#166534'}">
-        ${_restOrigem==='hc2'?'Restri&#xE7;&#xF5;es Internas HC&#xB2;':'Restri&#xE7;&#xF5;es Petrobras'}
-      </div>
-    </div>
+    <h2 style="font-size:13px;font-weight:800;color:${isPb?'#166534':'var(--navy)'}">
+      🚨 ${isPb?'Restrições Petrobras':'Restrições &amp; Pendências HC²'}
+    </h2>
     <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap">
       <select class="fsel" id="rest-filt-status" onchange="renderRestricoes()">
         <option value="">Todos os status</option>
@@ -1008,47 +1108,66 @@ function buildRestricoes(){
         <span style="position:absolute;left:8px;color:var(--g2);font-size:12px;pointer-events:none">🔍</span>
         <input id="rest-filt-texto" type="text" placeholder="Buscar por texto..." oninput="renderRestricoes()"
           style="border:1px solid var(--bdr);border-radius:6px;padding:4px 8px 4px 26px;font-size:10.5px;outline:none;color:var(--navy);background:#fff;width:180px">
-        <button onclick="document.getElementById('rest-filt-texto').value='';renderRestricoes()" title="Limpar busca"
+        <button onclick="document.getElementById('rest-filt-texto').value='';renderRestricoes()"
           style="position:absolute;right:5px;background:none;border:none;cursor:pointer;color:var(--g2);font-size:13px;line-height:1;padding:0">✕</button>
       </div>
       <span id="rest-count" style="font-size:10.5px;color:var(--g2)"></span>
-      <button onclick="exportRestricoesPDF()" title="Exportar PDF"
-        style="display:flex;align-items:center;gap:6px;background:#C8102E;color:#fff;border:none;border-radius:7px;padding:5px 14px;font-size:10.5px;font-weight:700;cursor:pointer;white-space:nowrap;box-shadow:0 2px 8px rgba(200,16,46,.3)"
+      ${!isPb?`
+      <button onclick="toggleFiltroReuniao()" title="${_filtroReuniao?'Ver todas':'Modo reunião'}"
+        style="padding:5px 9px;border-radius:7px;border:1.5px solid ${_filtroReuniao?'#22C55E':'var(--bdr)'};font-size:13px;cursor:pointer;background:${_filtroReuniao?'#22C55E':'transparent'};color:${_filtroReuniao?'#fff':'var(--g2)'};transition:.15s;line-height:1">🤝</button>
+      `:''}
+      <button onclick="toggleOcultarConc()" title="${_restOcultarConc?'Mostrar concluídas':'Ocultar concluídas'}"
+        style="padding:5px 9px;border-radius:7px;border:1.5px solid ${_restOcultarConc?'var(--navy)':'var(--bdr)'};font-size:13px;cursor:pointer;background:${_restOcultarConc?'var(--navy)':'transparent'};color:${_restOcultarConc?'#fff':'var(--g2)'};transition:.15s;line-height:1">
+        ${_restOcultarConc?'🙈':'👁'}
+      </button>
+      <button onclick="exportRestricoesPDF()"
+        style="background:#C8102E;color:#fff;border:none;border-radius:7px;padding:5px 14px;font-size:10.5px;font-weight:700;cursor:pointer;white-space:nowrap"
         onmouseover="this.style.background='#a50d26'" onmouseout="this.style.background='#C8102E'">
         📄 Exportar PDF
       </button>
     </div>
   </div>
+
+  <!-- KPI CARDS -->
   <div class="kpi-row" id="rest-kpis"></div>
+
+  <!-- BANNER VENCIDAS -->
   <div id="rest-vencido-banner" style="display:none"></div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px" id="rest-charts-wrap"><div class="card"><div class="card-hdr"><div class="card-title">📊 Status por Disciplina</div><div class="card-info">ⓘ Filtros aplicados</div></div><div style="position:relative;height:240px"><canvas id="rest-ch-disc"></canvas></div></div><div class="card"><div class="card-hdr"><div class="card-title">🍩 Distribuição por Status</div><div class="card-info">ⓘ Filtros aplicados</div></div><div style="position:relative;height:240px"><canvas id="rest-ch-status"></canvas></div></div></div>
+
+  <!-- GRÁFICOS -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px" id="rest-charts-wrap">
+    <div class="card">
+      <div class="card-hdr"><div class="card-title">📊 Status por Disciplina</div><div class="card-info">ⓘ Filtros aplicados</div></div>
+      <div style="position:relative;height:240px"><canvas id="rest-ch-disc"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-hdr"><div class="card-title">🍩 Distribuição por Status</div><div class="card-info">ⓘ Filtros aplicados</div></div>
+      <div style="position:relative;height:240px"><canvas id="rest-ch-status"></canvas></div>
+    </div>
+  </div>
+
+  <!-- CARDS DE RESTRIÇÕES -->
   <div class="rest-grid" id="rest-grid"></div>
-  <div class="footer">Criado por Anderson Souza · Rev. 5.2</div>`;
+
+  <div class="footer">Criado por Anderson Souza · Rev. 5.3 · ${new Date().toLocaleDateString('pt-BR')}</div>`;
   renderRestricoes();
 }
-
-function setRestOrigem(origem){
-  _restOrigem = origem;
-  _built.restricoes = 0;
-  buildRestricoes();
-  // Atualizar indicador de origem no KPI Semanal
-  const ind=document.getElementById('kpi-pend-origem-ind');
-  if(ind){
-    ind.textContent='+ adicionando em '+(origem==='hc2'?'HC²':'Petrobras');
-    ind.style.background=origem==='hc2'?'#dde9ff':'#dcfce7';
-    ind.style.color=origem==='hc2'?'var(--navy)':'#166534';
-  }
-  if(typeof kRenderPends==='function') kRenderPends();
-}
-
 
 function renderRestricoes(){
   const filtStatus=document.getElementById('rest-filt-status')?.value||'';
   const filtDisc=document.getElementById('rest-filt-disc')?.value||'';
   const filtTexto=(document.getElementById('rest-filt-texto')?.value||'').trim().toLowerCase();
 
-  // Filtrar por origem (HC² ou Petrobras)
-  let pends=(kState.pends||[]).filter(p=>(p.origem||'hc2')===_restOrigem);
+  // Filtrar por origem (HC² ou Petrobras) + índice de visibilidade
+  let pends=(kState.pends||[]).filter(p=>{
+    if((p.origem||'hc2')!==_restOrigem) return false;
+    // Índice 1 = só HC², nunca aparece no modo Petrobras
+    if(_restOrigem==='petrobras' && (p.indice||1)===1) return false;
+    return true;
+  });
+  if(_filtroReuniao) pends=pends.filter(p=>(p.indice||1)===3);
+  // Ocultar concluídas se toggle ativo (mas só se filtro de status não estiver em 'concluida')
+  if(_restOcultarConc && filtStatus!=='concluida') pends=pends.filter(p=>p.status!=='concluida');
   if(filtStatus==='vencido') pends=pends.filter(p=>_isVencido(p));
   else if(filtStatus) pends=pends.filter(p=>p.status===filtStatus);
   if(filtDisc) pends=pends.filter(p=>p.disc===filtDisc);
@@ -1064,31 +1183,40 @@ function renderRestricoes(){
   if(el) el.textContent=pends.length+' de '+allPorOrigem.length+' pendência(s)';
 
 
-  // Contagens — apenas da origem ativa
-  const allPends=(kState.pends||[]).filter(p=>(p.origem||'hc2')===_restOrigem);
-  const nAberta  =allPends.filter(p=>p.status==='aberta').length;
-  const nAndamento=allPends.filter(p=>p.status==='andamento').length;
-  const nConcluida=allPends.filter(p=>p.status==='concluida').length;
-  const nVencido  =allPends.filter(p=>_isVencido(p)).length;
 
-  // KPI cards — com card de vencidas em destaque
+  const allPends=(kState.pends||[]).filter(p=>(p.origem||'hc2')===_restOrigem);
+  const nVencido=allPends.filter(p=>_isVencido(p)).length;
+  const hasFilter=!!(filtStatus||filtDisc||filtTexto||_filtroReuniao);
+  // Contagens responsivas — refletem o subconjunto filtrado
+  const nAberta   =pends.filter(p=>p.status==='aberta'&&!_isVencido(p)).length;
+  const nAndamento=pends.filter(p=>p.status==='andamento'&&!_isVencido(p)).length;
+  const nConcluida=pends.filter(p=>p.status==='concluida').length;
+
   const kEl=document.getElementById('rest-kpis');
   if(kEl) kEl.innerHTML=
-    `<div class="kpi" style="border-left-color:var(--red)"><div class="kpi-lbl">Abertas</div><div class="kpi-val" style="color:var(--red)">${nAberta}</div></div>`+
-    `<div class="kpi" style="border-left-color:var(--yellow)"><div class="kpi-lbl">Em andamento</div><div class="kpi-val" style="color:var(--yellow)">${nAndamento}</div></div>`+
-    `<div class="kpi" style="border-left-color:var(--green)"><div class="kpi-lbl">Concluídas</div><div class="kpi-val" style="color:var(--green)">${nConcluida}</div></div>`+
-    `<div class="kpi" style="border-left-color:var(--navy)"><div class="kpi-lbl">Total</div><div class="kpi-val" style="color:var(--navy)">${allPends.length}</div></div>`+
+    `<div class="kpi" style="border-left-color:var(--red);${filtStatus==='aberta'?'box-shadow:inset 0 0 0 2px var(--red);':''}cursor:pointer" onclick="toggleFiltStatus('aberta')" title="Filtrar abertas">
+      <div class="kpi-lbl">Abertas</div><div class="kpi-val" style="color:${nAberta>0?'var(--red)':'var(--g2)'}">${nAberta}</div>
+    </div>`+
+    `<div class="kpi" style="border-left-color:var(--yellow);${filtStatus==='andamento'?'box-shadow:inset 0 0 0 2px var(--yellow);':''}cursor:pointer" onclick="toggleFiltStatus('andamento')" title="Filtrar em andamento">
+      <div class="kpi-lbl">Em andamento</div><div class="kpi-val" style="color:${nAndamento>0?'var(--yellow)':'var(--g2)'}">${nAndamento}</div>
+    </div>`+
+    `<div class="kpi" style="border-left-color:var(--green);${filtStatus==='concluida'?'box-shadow:inset 0 0 0 2px var(--green);':''}cursor:pointer" onclick="toggleFiltStatus('concluida')" title="Filtrar concluídas">
+      <div class="kpi-lbl">Concluídas</div><div class="kpi-val" style="color:${nConcluida>0?'var(--green)':'var(--g2)'}">${nConcluida}</div>
+    </div>`+
+    `<div class="kpi" style="border-left-color:var(--navy);cursor:pointer" onclick="toggleFiltStatus('')" title="${hasFilter?'Limpar filtros':'Total'}">
+      <div class="kpi-lbl">${hasFilter?'Filtrado':'Total'}</div>
+      <div class="kpi-val" style="color:var(--navy)">${hasFilter?pends.length+' / '+allPends.length:allPends.length}</div>
+    </div>`+
     (nVencido>0?
-      `<div class="kpi" style="border-left-color:#DC2626;background:linear-gradient(135deg,#FFF5F5,#FEF0EC);cursor:pointer;animation:pulse-border 2s infinite"
-        onclick="document.getElementById('rest-filt-status').value='vencido';renderRestricoes()" title="Clique para filtrar vencidas">
+      `<div class="kpi" style="border-left-color:#DC2626;background:linear-gradient(135deg,#FFF5F5,#FEF0EC);cursor:pointer;animation:pulse-border 2s infinite;${filtStatus==='vencido'?'box-shadow:inset 0 0 0 2px #DC2626;':''}"
+        onclick="toggleFiltStatus('vencido')" title="Filtrar vencidas">
         <div class="kpi-lbl" style="color:#991B1B">🔥 Vencidas</div>
         <div class="kpi-val" style="color:#DC2626">${nVencido}</div>
-        <div class="kpi-sub" style="color:#991B1B;font-weight:600">clique p/ filtrar</div>
+        <div class="kpi-sub" style="color:#991B1B;font-weight:600">${filtStatus==='vencido'?'✓ ativo':'clique p/ filtrar'}</div>
       </div>`:
       `<div class="kpi" style="border-left-color:#059669;background:#F0FDF4"><div class="kpi-lbl" style="color:#059669">✅ Sem vencidas</div><div class="kpi-val" style="color:#059669">0</div></div>`
     );
 
-  // Banner de alerta se há vencidas e não está filtrando por vencido
   const banner=document.getElementById('rest-vencido-banner');
   if(banner){
     if(nVencido>0&&filtStatus!=='vencido'){
@@ -1153,6 +1281,7 @@ function renderRestricoes(){
     return _diasAtraso(b)-_diasAtraso(a);
   });
 
+  const allPendsRef = kState.pends||[];
   grid.innerHTML=sorted.map(p=>{
     const vencido=_isVencido(p);
     const atraso=_diasAtraso(p);
@@ -1160,15 +1289,18 @@ function renderRestricoes(){
     const sc=vencido?'#DC2626':(statusColors[p.status]||'var(--grey)');
     const sl=vencido?`🔥 VENCIDA`:(statusLabels[p.status]||p.status);
     const slBg=vencido?'#FEE2E2':(statusColors[p.status]||'var(--grey)')+'22';
+    const realIdx=allPendsRef.indexOf(p);
+    const isReuniao=_restOrigem==='hc2'&&(p.indice||1)===3;
+    const extraStyle=isReuniao?';border-right:3px solid #22C55E':'';
 
-    return `<div class="rest-card ${cardCls}" style="${vencido?'animation:pulse-border 2s infinite':''}" >
+    return `<div class="rest-card ${cardCls}" style="${vencido?'animation:pulse-border 2s infinite':''}${extraStyle}" ondblclick="openRestCardModal(${realIdx})" title="Duplo clique para editar">
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap">
         <span class="rest-disc">${_highlight(p.disc||'Geral',term)}</span>
         <span class="badge" style="background:${slBg};color:${sc};border:1px solid ${sc}44;font-weight:800">${sl}</span>
         ${vencido?`<span style="background:#7C2D12;color:#FED7AA;font-size:9px;font-weight:800;padding:2px 7px;border-radius:4px;margin-left:auto">⏰ ${atraso}d atrasada</span>`:''}
       </div>
       <div class="rest-text">${_highlight((p.text||'').trim(),term)}</div>
-      <div class="rest-meta" style="${vencido?'color:#991B1B':''}" >
+      <div class="rest-meta" style="${vencido?'color:#991B1B':''}">
         ${p.date?`<span>📅 ${p.date}</span>`:''}
         ${p.resp?`<span>👤 ${_highlight(p.resp,term)}</span>`:''}
         ${p.prazo?`<span style="font-weight:700;color:${vencido?'#DC2626':'inherit'}">⏰ Prazo: ${p.prazo}${vencido?` (+${atraso}d)`:''}</span>`:''}
@@ -1318,7 +1450,7 @@ function buildRundown(){
     <div class="tbar"><h3 id="rd-tbl-title">Detalhamento por Disciplina</h3><div style="font-size:10px;color:var(--g2)" id="rd-tbl-sub"></div></div>
     <div class="twrap"><table><thead id="rd-thead"></thead><tbody id="rd-tbody"></tbody></table></div>
   </div>
-  <div class="footer">Criado por Anderson Souza · Rev. 5.2</div>`;
+  <div class="footer">Criado por Anderson Souza · Rev. 5.3 · ${new Date().toLocaleDateString('pt-BR')}</div>`;
 
   renderRundown();
 }
@@ -1553,31 +1685,28 @@ function buildKpiView(){
       </div>
     </div>
 
-    <div class="kv-panel">
-      <div class="kv-panel-header">
-        <span class="kv-panel-title">Restrições & Pendências — <span id="kpi-pend-orig-lbl" style="color:${_restOrigem==='hc2'?'var(--orange)':'#6ee7b7'}">${_restOrigem==='hc2'?'HC²':'Petrobras'}</span></span>
+    <div class="kv-panel" style="padding:10px 14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <div style="display:flex;background:rgba(255,255,255,.1);border-radius:8px;padding:2px;gap:2px">
-            <button onclick="setRestOrigem('hc2')" style="font-size:10px;padding:3px 10px;border-radius:6px;border:none;font-weight:700;cursor:pointer;font-family:inherit;transition:.15s;background:${_restOrigem==='hc2'?'rgba(255,255,255,.25)':'transparent'};color:#fff">HC²</button>
-            <button onclick="setRestOrigem('petrobras')" style="font-size:10px;padding:3px 10px;border-radius:6px;border:none;font-weight:700;cursor:pointer;font-family:inherit;transition:.15s;background:${_restOrigem==='petrobras'?'#166534':'transparent'};color:#fff">Petrobras</button>
-          </div>
-          <select class="kv-select" id="k-pendFiltSel" onchange="kRenderPends()" style="background:var(--bg);color:var(--navy);border:1px solid var(--bdr);font-size:11px;padding:4px 8px">
-            <option value="">Todas as disciplinas</option><option value="Geral">Geral</option>
-          </select>
-          <span style="font-size:11px;color:var(--g2)" id="k-pendCount">0 pendências</span>
+          <span style="font-size:11px;color:var(--kv-text2)">🚨 Restrições:</span>
+          <span style="font-size:12px;font-weight:800;color:var(--kv-text)" id="k-pendCount">0</span>
+          <span style="font-size:11px;color:var(--kv-text2)">abertas</span>
+          <span id="k-pend-venc-badge" style="display:none;background:#DC2626;color:#fff;font-size:9px;font-weight:800;padding:2px 8px;border-radius:8px;cursor:pointer" onclick="showV('restricoes')"></span>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <input type="hidden" id="k-pendDiscSel" value="Geral">
+          <input type="hidden" id="k-pendIndiceSel" value="1">
+          <button onclick="kAddPend(event)" title="Clique = uso interno · Shift+Clique = incluir na reunião"
+            style="background:var(--orange);color:#fff;border:none;border-radius:7px;padding:6px 14px;font-size:10.5px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px">
+            ＋ Nova Restrição
+          </button>
+          <button onclick="showV('restricoes')"
+            style="background:transparent;color:var(--kv-text2);border:1px solid var(--kv-border);border-radius:7px;padding:6px 13px;font-size:10.5px;font-weight:600;cursor:pointer">
+            Ver todas →
+          </button>
         </div>
       </div>
-      <div class="kv-pend-grid" id="k-pendGrid"></div>
-      <div class="kv-pend-add-row">
-        <select class="kv-select" id="k-pendDiscSel" style="background:var(--bg);color:var(--navy);border:1px solid var(--bdr)"><option value="Geral">Geral</option></select>
-        <select class="kv-select" id="k-pendStatusSel" style="background:var(--bg);color:var(--navy);border:1px solid var(--bdr)">
-          <option value="aberta">Aberta</option><option value="andamento">Em andamento</option><option value="concluida">Concluída</option>
-        </select>
-        <div id="kpi-pend-origem-ind" style="font-size:10px;font-weight:700;padding:3px 9px;border-radius:8px;background:#dde9ff;color:var(--navy)">+ adicionando em HC²</div>
-        <button class="kv-pend-add-btn" style="width:auto;padding:5px 14px" onclick="kAddPend()">+ Nova pendência</button>
-      </div>
     </div>
-
     <div class="kv-footer-bar">
       <div class="kv-footer-stat"><div class="kv-fs-val" id="k-ft-total">0</div><div class="kv-fs-label">Total executado</div></div>
       <div class="kv-footer-stat"><div class="kv-fs-val" id="k-ft-pct">0%</div><div class="kv-fs-label">Progresso geral</div></div>
@@ -1596,7 +1725,7 @@ function buildKpiView(){
       <div class="kv-sig-right">
         <span class="kv-sig-tag blue">HC² Consórcio</span>
         <div class="kv-sig-div"></div><span class="kv-sig-tag">GASLUB EPC05</span>
-        <div class="kv-sig-div"></div><span class="kv-sig-tag teal">Rev. 5.2</span>
+        <div class="kv-sig-div"></div><span class="kv-sig-tag teal">Rev. 5.3</span>
         <div class="kv-sig-div"></div><span class="kv-sig-tag">abr/2026</span>
       </div>
     </div>
@@ -1785,49 +1914,24 @@ function kRenderAcum(){
   const el3=document.getElementById('k-kc-falta'); if(el3) el3.textContent=Nf(Math.round(Math.max(0,totTot-totExec)));
 }
 function kRenderPends(){
-  const flt=document.getElementById('k-pendFiltSel')?.value;
-  // Filtrar por origem (sincronizado com a aba Restrições)
+  // Agora só mostra contador e badge — edição feita na aba Restrições
   const origem=_restOrigem||'hc2';
-  const pends=(kState.pends||[]).filter(p=>(p.origem||'hc2')===origem&&(!flt||p.disc===flt));
+  const abertas=(kState.pends||[]).filter(p=>(p.origem||'hc2')===origem&&p.status!=='concluida').length;
+  const vencidas=(kState.pends||[]).filter(p=>(p.origem||'hc2')===origem&&_isVencido(p)).length;
   const cnt=document.getElementById('k-pendCount');
-  const nHc2=(kState.pends||[]).filter(p=>(p.origem||'hc2')==='hc2').length;
-  const nPb =(kState.pends||[]).filter(p=>p.origem==='petrobras').length;
-  if(cnt) cnt.textContent=pends.length+' | HC²: '+nHc2+' · PB: '+nPb;
-  // Atualizar label do toggle no painel KPI
-  const kOrigLabel=document.getElementById('kpi-pend-orig-lbl');
-  if(kOrigLabel) kOrigLabel.textContent=origem==='hc2'?'HC²':'Petrobras';
-  const grid=document.getElementById('k-pendGrid'); if(!grid) return;
-  const statusColors={aberta:'#dc2626',andamento:'#d97706',concluida:'#059669'};
-  const statusBgs={aberta:'#fee2e2',andamento:'#fef3c7',concluida:'#d1fae5'};
-  const statusLabels={aberta:'Aberta',andamento:'Em andamento',concluida:'Concluída'};
-  const isPb=origem==='petrobras';
-  grid.innerHTML=pends.map((p)=>{
-    const discIdx=kState.pends.indexOf(p);
-    const isVenc=_isVencido(p);
-    return `<div class="kv-pend-card" style="${isVenc?'border:1.5px solid #DC2626;background:linear-gradient(to bottom,#fff5f5,#fff)':isPb?'border-top:2px solid #166534':''}">
-      <button class="kv-pend-del" onclick="kDelPend(${discIdx})">✕</button>
-      <div class="kv-pend-card-header">
-        <span class="kv-pend-disc-tag" style="${isPb?'background:#dcfce7;color:#166534':''}">${p.disc||'Geral'}</span>
-        ${isPb?'<span style="font-size:9px;background:#166534;color:#fff;padding:1px 6px;border-radius:4px;font-weight:700">PB</span>':''}
-        <button class="kv-pend-status-tag" style="background:${statusBgs[p.status]||'#eef1f8'};color:${statusColors[p.status]||'var(--grey)'}" onclick="kCycleStatus(${discIdx})">${statusLabels[p.status]||p.status}</button>
-      </div>
-      ${_isVencido(p)?'<div style="font-size:9.5px;background:#FEE2E2;color:#DC2626;font-weight:700;padding:3px 8px;border-radius:5px;margin-bottom:5px">🔥 VENCIDA — '+_diasAtraso(p)+'d atrasada</div>':''} 
-      <textarea class="kv-pend-textarea" oninput="kState.pends[${discIdx}].text=this.value;kSave()">${p.text||''}</textarea>
-      <div class="kv-pend-meta">
-        <div class="kv-pend-meta-field"><div class="kv-pend-meta-label">Responsável</div><input class="kv-pend-meta-input" type="text" value="${p.resp||''}" oninput="kState.pends[${discIdx}].resp=this.value;kSave()"></div>
-        <div class="kv-pend-meta-field"><div class="kv-pend-meta-label">Prazo</div><input class="kv-pend-meta-input" type="date" value="${p.prazo||''}" oninput="kState.pends[${discIdx}].prazo=this.value;kSave();kRenderPends()"></div>
-      </div>
-      <div class="kv-pend-date">Criado: ${p.date||p.created||'—'}</div>
-    </div>`;
-  }).join('');
+  if(cnt) cnt.textContent=abertas;
+  const badge=document.getElementById('k-pend-venc-badge');
+  if(badge){badge.textContent='🔥 '+vencidas+' vencida(s)';badge.style.display=vencidas>0?'inline':'none';}
 }
-function kAddPend(){
-  const disc=document.getElementById('k-pendDiscSel')?.value||'Geral';
-  const status=document.getElementById('k-pendStatusSel')?.value||'aberta';
-  const origem=_restOrigem||'hc2';
-  kState.pends.push({disc,status,origem,text:'',resp:'',prazo:'',date:new Date().toLocaleDateString('pt-BR')});
+function kAddPend(evt){
+  const origem='hc2'; // sempre HC² — Petrobras cria as dela pela aba Restrições
+  const indice=evt&&evt.shiftKey?3:1; // Shift = incluir na reunião
+  const date=new Date().toLocaleDateString('pt-BR');
+  kState.pends.push({disc:'Geral',status:'aberta',origem,indice,text:'',resp:'',prazo:'',date});
   kSave(); kRenderPends(); updateBadges();
-  if(_built.restricoes){_built.restricoes=0; buildRestricoes();}
+  if(_built.restricoes){_built.restricoes=0;}
+  showV('restricoes');
+  setTimeout(()=>openRestCardModal(kState.pends.length-1), 300);
 }
 function kDelPend(i){
   kState.pends.splice(i,1); kSave(); kRenderPends(); updateBadges();
@@ -2423,7 +2527,7 @@ function buildResponsavel(){
     +'<div style="background:var(--card);border-radius:var(--r);padding:13px 16px;box-shadow:var(--sh);margin-bottom:12px">'
     +'<div class="card-hdr"><div class="card-title">📊 Distribuição por Responsável</div></div>'
     +'<div style="position:relative;height:280px"><canvas id="ch-resp-bar"></canvas></div></div>'
-    +'<div class="footer">Criado por Anderson Souza · Rev. 5.2</div>';
+    +'<div class="footer">Criado por Anderson Souza · Rev. 5.3 · '+new Date().toLocaleDateString('pt-BR')+'</div>';
   if(CHARTS['ch-resp-bar']){try{CHARTS['ch-resp-bar'].destroy();}catch{}}
   const ch=document.getElementById('ch-resp-bar');
   if(ch)CHARTS['ch-resp-bar']=new Chart(ch.getContext('2d'),{
@@ -2520,7 +2624,7 @@ function gerarRelatorioSemanal(){
     +'<div class="sec"><div class="st">KPI por Disciplina \u2014 S'+String(weekNum).padStart(3,'0')+'</div>'
     +'<table><thead><tr><th>Disciplina</th><th>Prog.</th><th>Realizado</th><th>% Sem.</th><th>Acum.</th><th>% Geral</th></tr></thead><tbody>'+discRows+'</tbody></table></div>'
     +((pendAberta.length+pendVencida.length)>0?'<div class="sec"><div class="st">Restri\u00e7\u00f5es Abertas & Vencidas</div><table><thead><tr><th>#</th><th>Disc.</th><th>Status</th><th>Descri\u00e7\u00e3o</th><th>Resp.</th><th>Prazo</th></tr></thead><tbody>'+pendRows+'</tbody></table></div>':'')
-    +'<div class="fb"><span>Anderson Souza \u00b7 (21) 99641-3839</span><span>HC\u00b2 Cons\u00f3rcio \u00b7 Rev. 5.2</span></div>'
+    +'<div class="fb"><span>Anderson Souza \u00b7 (21) 99641-3839</span><span>HC\u00b2 Cons\u00f3rcio \u00b7 Rev. 5.3 · '+new Date().toLocaleDateString('pt-BR')+'</span></div>'
     +'<script>window.onload=function(){window.print();};<\/script>'
     +'</body></html>';
   document.getElementById('modal-relatorio')?.classList.remove('open');
@@ -2533,6 +2637,67 @@ function gerarRelatorioSemanal(){
 
 
 </script>
+
+<!-- MODAL CONFIGURAÇÃO (oculto) -->
+<div id="modal-visib" style="display:none;position:fixed;inset:0;z-index:2000;align-items:center;justify-content:center;background:rgba(10,20,60,.45)" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:var(--card);border-radius:12px;padding:18px 22px;box-shadow:0 12px 60px rgba(0,0,0,.3);min-width:240px;border:1px solid var(--bdr)">
+    <div style="font-size:11px;font-weight:800;color:var(--navy);margin-bottom:12px">⚙ Alcance da restrição</div>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <div id="vlbl-1" onclick="setVisibIndice(1)" style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 10px;border-radius:7px;border:1.5px solid var(--bdr);font-size:11px;font-weight:600;transition:.15s">
+        <span style="font-size:15px">🔒</span> Somente uso interno
+      </div>
+      <div id="vlbl-3" onclick="setVisibIndice(3)" style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 10px;border-radius:7px;border:1.5px solid var(--bdr);font-size:11px;font-weight:600;transition:.15s">
+        <span style="font-size:15px">🤝</span> Incluir na reunião
+      </div>
+    </div>
+    <div style="margin-top:12px;text-align:right">
+      <button onclick="document.getElementById('modal-visib').style.display='none'" style="font-size:10.5px;padding:4px 12px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--g2);cursor:pointer">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EDIÇÃO DE RESTRIÇÃO -->
+<div id="modal-rest-edit" style="display:none;position:fixed;inset:0;z-index:2000;align-items:center;justify-content:center;background:rgba(10,20,60,.5)" onclick="if(event.target===this)closeRestEdit()">
+  <div style="background:var(--card);border-radius:14px;padding:22px;box-shadow:0 20px 80px rgba(0,0,0,.3);width:460px;max-width:96vw;max-height:90vh;overflow-y:auto">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <h2 style="font-size:14px;font-weight:800;color:var(--navy)">✏️ Editar Restrição</h2>
+      <button onclick="closeRestEdit()" style="background:var(--bg);border:1px solid var(--bdr);border-radius:8px;padding:4px 10px;cursor:pointer;font-size:13px;color:var(--g2)">✕</button>
+    </div>
+    <div style="margin-bottom:12px">
+      <label style="font-size:10px;font-weight:700;color:var(--navy);display:block;margin-bottom:5px">STATUS</label>
+      <div style="display:flex;gap:6px">
+        <button id="re-btn-aberta"    onclick="reSetStatus('aberta')"    style="flex:1;padding:7px;border-radius:7px;border:1.5px solid var(--bdr);font-size:11px;font-weight:700;cursor:pointer;transition:.15s">🔴 Aberta</button>
+        <button id="re-btn-andamento" onclick="reSetStatus('andamento')" style="flex:1;padding:7px;border-radius:7px;border:1.5px solid var(--bdr);font-size:11px;font-weight:700;cursor:pointer;transition:.15s">🟡 Em andamento</button>
+        <button id="re-btn-concluida" onclick="reSetStatus('concluida')" style="flex:1;padding:7px;border-radius:7px;border:1.5px solid var(--bdr);font-size:11px;font-weight:700;cursor:pointer;transition:.15s">🟢 Concluída</button>
+      </div>
+    </div>
+    <div style="margin-bottom:12px">
+      <label style="font-size:10px;font-weight:700;color:var(--navy);display:block;margin-bottom:5px">DESCRIÇÃO</label>
+      <textarea id="re-text" rows="4" style="width:100%;border:1px solid var(--bdr);border-radius:7px;padding:8px 10px;font-size:12px;font-family:inherit;outline:none;resize:vertical;color:var(--navy)"></textarea>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+      <div>
+        <label style="font-size:10px;font-weight:700;color:var(--navy);display:block;margin-bottom:5px">RESPONSÁVEL</label>
+        <input id="re-resp" type="text" style="width:100%;border:1px solid var(--bdr);border-radius:7px;padding:7px 10px;font-size:12px;font-family:inherit;outline:none;color:var(--navy)">
+      </div>
+      <div>
+        <label style="font-size:10px;font-weight:700;color:var(--navy);display:block;margin-bottom:5px">PRAZO</label>
+        <input id="re-prazo" type="date" style="width:100%;border:1px solid var(--bdr);border-radius:7px;padding:7px 10px;font-size:12px;font-family:inherit;outline:none;color:var(--navy)">
+      </div>
+    </div>
+    <div id="re-alcance-wrap" style="margin-bottom:16px;display:none">
+      <label style="font-size:10px;font-weight:700;color:var(--navy);display:block;margin-bottom:5px">ALCANCE</label>
+      <div style="display:flex;gap:6px">
+        <button id="re-btn-interno" onclick="reSetIndice(1)" style="flex:1;padding:7px;border-radius:7px;border:1.5px solid var(--bdr);font-size:11px;font-weight:700;cursor:pointer;transition:.15s">🔒 Uso interno</button>
+        <button id="re-btn-reuniao" onclick="reSetIndice(3)" style="flex:1;padding:7px;border-radius:7px;border:1.5px solid var(--bdr);font-size:11px;font-weight:700;cursor:pointer;transition:.15s">🤝 Reunião</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button onclick="saveRestEdit()" style="flex:1;background:var(--navy);color:#fff;border:none;border-radius:8px;padding:9px;font-size:12px;font-weight:700;cursor:pointer">💾 Salvar</button>
+      <button onclick="deleteRestEdit()" style="background:#FEE2E2;color:#DC2626;border:1px solid #FCA5A5;border-radius:8px;padding:9px 14px;font-size:12px;font-weight:700;cursor:pointer">🗑 Excluir</button>
+    </div>
+  </div>
+</div>
 
 <!-- ⚡ FAB RESUMO RÁPIDO -->
 <button class="fab" onclick="openResumo()" title="Resumo Rápido" id="fabBtn">
