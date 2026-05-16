@@ -1190,8 +1190,10 @@ function renderRestricoes(){
 
 
   const allPends=(kState.pends||[]).filter(p=>(p.origem||'hc2')===_restOrigem);
-  const nVencido=allPends.filter(p=>_isVencido(p)).length;
+  const nVencido=pends.filter(p=>_isVencido(p)).length;
   const hasFilter=!!(filtStatus||filtDisc||filtTexto||_filtroReuniao);
+  // Para o card Total: não revelar "Filtrado" quando só o filtro de reunião está ativo
+  const hasVisibleFilter=!!(filtStatus||filtDisc||filtTexto);
   // Contagens responsivas — refletem o subconjunto filtrado
   const nAberta   =pends.filter(p=>p.status==='aberta'&&!_isVencido(p)).length;
   const nAndamento=pends.filter(p=>p.status==='andamento'&&!_isVencido(p)).length;
@@ -1208,9 +1210,9 @@ function renderRestricoes(){
     `<div class="kpi" style="border-left-color:var(--green);${filtStatus==='concluida'?'box-shadow:inset 0 0 0 2px var(--green);':''}cursor:pointer" onclick="toggleFiltStatus('concluida')" title="Filtrar concluídas">
       <div class="kpi-lbl">Concluídas</div><div class="kpi-val" style="color:${nConcluida>0?'var(--green)':'var(--g2)'}">${nConcluida}</div>
     </div>`+
-    `<div class="kpi" style="border-left-color:var(--navy);cursor:pointer" onclick="toggleFiltStatus('')" title="${hasFilter?'Limpar filtros':'Total'}">
-      <div class="kpi-lbl">${hasFilter?'Filtrado':'Total'}</div>
-      <div class="kpi-val" style="color:var(--navy)">${hasFilter?pends.length+' / '+allPends.length:allPends.length}</div>
+    `<div class="kpi" style="border-left-color:var(--navy);cursor:pointer" onclick="toggleFiltStatus('')" title="${hasVisibleFilter?'Limpar filtros':'Total'}">
+      <div class="kpi-lbl">${hasVisibleFilter?'Filtrado':'Total'}</div>
+      <div class="kpi-val" style="color:var(--navy)">${hasVisibleFilter?pends.length+' / '+allPends.length:pends.length}</div>
     </div>`+
     (nVencido>0?
       `<div class="kpi" style="border-left-color:#DC2626;background:linear-gradient(135deg,#FFF5F5,#FEF0EC);cursor:pointer;animation:pulse-border 2s infinite;${filtStatus==='vencido'?'box-shadow:inset 0 0 0 2px #DC2626;':''}"
