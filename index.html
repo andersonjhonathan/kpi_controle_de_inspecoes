@@ -858,9 +858,14 @@ function renderCurva(){
 function buildWla6(){
   const c=document.getElementById('view-wla6'); if(!c) return;
   const wsToShow=[];
-  for(let i=-1;i<=4;i++){
-    const w=K_WEEKS.find(x=>x.num===CW+i);
-    if(w) wsToShow.push({...w,past:i<0,cur:i===0});
+  // Mostrar 5 anteriores + atual (atual sempre no último card à direita)
+  for(let i=-5;i<=0;i++){
+    const cwIdx=K_WEEKS.findIndex(w=>w.num===CW);
+    if(cwIdx<0) break;
+    const targetIdx=cwIdx+i;
+    if(targetIdx<0||targetIdx>=K_WEEKS.length) continue;
+    const w=K_WEEKS[targetIdx];
+    wsToShow.push({...w,past:i<0,cur:i===0});
   }
 
   const cols=wsToShow.map(w=>{
@@ -902,10 +907,10 @@ function buildWla6(){
   }).join('');
 
   c.innerHTML=`
-  <h2 style="font-size:13px;font-weight:800;color:var(--navy);margin-bottom:12px">🗓️ 6 Semanas — S${String(Math.max(K_WEEKS[0].num,CW-1)).padStart(3,'0')} → S${String(Math.min(K_WEEKS[K_WEEKS.length-1].num,CW+4)).padStart(3,'0')}</h2>
+  <h2 style="font-size:13px;font-weight:800;color:var(--navy);margin-bottom:12px">🗓️ 6 Semanas — S${String(wsToShow[0]?.num||CW).padStart(3,'0')} → S${String(CW).padStart(3,'0')} (atual)</h2>
   <div class="wla-grid">${cols}</div>
   <div class="card full" style="margin-bottom:12px">
-    <div class="card-hdr"><div class="card-title">📊 Programado vs Realizado — Próximas 6 Semanas</div></div>
+    <div class="card-hdr"><div class="card-title">📊 Programado vs Realizado — Últimas 6 Semanas</div></div>
     <div class="cw h260"><canvas id="ch-wla-bar"></canvas></div>
   </div>
   <div class="footer">Criado por Anderson Souza · Rev. 5.3 · ${new Date().toLocaleDateString('pt-BR')}</div>`;
