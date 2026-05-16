@@ -1125,6 +1125,10 @@ function buildRestricoes(){
         style="padding:5px 9px;border-radius:7px;border:1.5px solid ${_restOcultarConc?'var(--navy)':'var(--bdr)'};font-size:13px;cursor:pointer;background:${_restOcultarConc?'var(--navy)':'transparent'};color:${_restOcultarConc?'#fff':'var(--g2)'};transition:.15s;line-height:1">
         ${_restOcultarConc?'🙈':'👁'}
       </button>
+      <button onclick="novaRestricao()"
+        style="display:flex;align-items:center;gap:5px;background:var(--orange);color:#fff;border:none;border-radius:7px;padding:5px 14px;font-size:10.5px;font-weight:700;cursor:pointer;white-space:nowrap">
+        ＋ Nova Restrição
+      </button>
       <button onclick="exportRestricoesPDF()"
         style="background:#C8102E;color:#fff;border:none;border-radius:7px;padding:5px 14px;font-size:10.5px;font-weight:700;cursor:pointer;white-space:nowrap"
         onmouseover="this.style.background='#a50d26'" onmouseout="this.style.background='#C8102E'">
@@ -1321,6 +1325,22 @@ function _highlight(text, term) {
   return text.replace(new RegExp('(' + escaped + ')', 'gi'),
     '<mark style="background:#FFF176;color:#333;border-radius:2px;padding:0 1px">$1</mark>');
 }
+function novaRestricao(){
+  // Criar pendência em branco na origem ativa e abrir modal de edição
+  const indice = _filtroReuniao ? 3 : 1;
+  kState.pends.push({
+    disc:'Geral', status:'aberta', origem:_restOrigem,
+    indice, text:'', resp:'', prazo:'',
+    date: new Date().toLocaleDateString('pt-BR')
+  });
+  kSave();
+  const newIdx = kState.pends.length - 1;
+  _built.restricoes = 0;
+  buildRestricoes();
+  updateBadges();
+  setTimeout(()=> openRestCardModal(newIdx), 200);
+}
+
 function exportRestricoesPDF(){
   const filtStatus=document.getElementById('rest-filt-status')?.value||'';
   const filtDisc=document.getElementById('rest-filt-disc')?.value||'';
